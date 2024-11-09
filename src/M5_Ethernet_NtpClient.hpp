@@ -35,6 +35,14 @@ public:
     String readHour();
     String readMinute();
     String readSecond();
+
+    String readYear(unsigned long Epoch);
+    String readMonth(unsigned long Epoch);
+    String readDay(unsigned long Epoch);
+    String readHour(unsigned long Epoch);
+    String readMinute(unsigned long Epoch);
+    String readSecond(unsigned long Epoch);
+
 };
 
 M5_Ethernet_NtpClient NtpClient;
@@ -55,7 +63,7 @@ String M5_Ethernet_NtpClient::getTime(String address, int timezone)
     if ((lastEpoch == 0 || (millis() - lastMillis) > Interval * 1000 && (millis() - intMillis) > Interval * 1000))
     {
         sendNTPpacket(address.c_str());
-        delay(1000);
+        delay(800);
         if (Udp.parsePacket())
         {
             Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
@@ -115,67 +123,94 @@ void M5_Ethernet_NtpClient::sendNTPpacket(const char *address)
 
 String M5_Ethernet_NtpClient::readYear()
 {
+    return readYear(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readYear(unsigned long Epoch)
+{
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         return String(ptm->tm_year + 1900); // tm_year is years since 1900
     }
     return String("Year not available");
 }
 
+
 String M5_Ethernet_NtpClient::readMonth()
+{
+    return readMonth(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readMonth(unsigned long Epoch)
 {
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_mon + 1); // tm_mon is months since January (0-11)
         return String(buffer);
     }
     return String("Month not available");
 }
-
 String M5_Ethernet_NtpClient::readDay()
+{
+    return readDay(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readDay(unsigned long Epoch)
 {
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_mday); // tm_mday is day of the month (1-31)
         return String(buffer);
     }
     return String("Day not available");
 }
-
 String M5_Ethernet_NtpClient::readHour()
+{
+    return readHour(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readHour(unsigned long Epoch)
 {
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_hour); // tm_hour is hour of the day (0-23)
         return String(buffer);
     }
     return String("Hour not available");
 }
-
 String M5_Ethernet_NtpClient::readMinute()
+{
+    return readMinute(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readMinute(unsigned long Epoch)
 {
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_min); // tm_min is minute of the hour (0-59)
         return String(buffer);
     }
     return String("Minute not available");
 }
-
 String M5_Ethernet_NtpClient::readSecond()
+{
+    return readSecond(currentEpoch);
+}
+
+String M5_Ethernet_NtpClient::readSecond(unsigned long Epoch)
 {
     if (currentEpoch != 0)
     {
-        struct tm *ptm = gmtime((time_t *)&currentEpoch);
+        struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_sec); // tm_sec is second of the minute (0-59)
         return String(buffer);
