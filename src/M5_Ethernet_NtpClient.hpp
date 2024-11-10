@@ -29,6 +29,9 @@ public:
     String getTime(String address);
     String getTime(String address, int timezoneOffset);
 
+    void updateTimeFromServer(String address);
+    void updateTimeFromServer(String address, int timezoneOffset);
+
     String readYear();
     String readMonth();
     String readDay();
@@ -42,7 +45,6 @@ public:
     String readHour(unsigned long Epoch);
     String readMinute(unsigned long Epoch);
     String readSecond(unsigned long Epoch);
-
 };
 
 M5_Ethernet_NtpClient NtpClient;
@@ -50,6 +52,37 @@ M5_Ethernet_NtpClient NtpClient;
 void M5_Ethernet_NtpClient::begin()
 {
     Udp.begin(localPort);
+}
+
+void M5_Ethernet_NtpClient::updateTimeFromServer(String address)
+{
+    return updateTimeFromServer(address, timezoneOffset);
+}
+
+void M5_Ethernet_NtpClient::updateTimeFromServer(String address, int timezone)
+{
+    timezoneOffset = timezone;
+    Serial.println("UpdateFromNTPserver");
+    sendNTPpacket(address.c_str());
+    delay(800);
+    if (Udp.parsePacket())
+    {
+        Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
+        unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
+        unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
+        unsigned long secsSince1900 = highWord << 16 | lowWord;
+        const unsigned long seventyYears = 2208988800UL;
+        unsigned long epoch = secsSince1900 - seventyYears;
+        epoch += timezoneOffset * 3600;
+
+        lastEpoch = epoch;
+        lastMillis = millis();
+        intMillis = millis();
+        currentEpoch = lastEpoch;
+
+        return;
+    }
+    intMillis = millis();
 }
 
 String M5_Ethernet_NtpClient::getTime(String address)
@@ -60,31 +93,9 @@ String M5_Ethernet_NtpClient::getTime(String address)
 String M5_Ethernet_NtpClient::getTime(String address, int timezone)
 {
     timezoneOffset = timezone;
-    if ((lastEpoch == 0 || (millis() - lastMillis) > Interval * 1000 && (millis() - intMillis) > Interval * 1000))
+    if (lastEpoch == 0)
     {
-        sendNTPpacket(address.c_str());
-        delay(800);
-        if (Udp.parsePacket())
-        {
-            Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
-            unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
-            unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
-            unsigned long secsSince1900 = highWord << 16 | lowWord;
-            const unsigned long seventyYears = 2208988800UL;
-            unsigned long epoch = secsSince1900 - seventyYears;
-            epoch += timezoneOffset * 3600;
-
-            lastEpoch = epoch;
-            lastMillis = millis();
-            intMillis = millis();
-            currentEpoch = lastEpoch;
-
-            // create a time string
-            char buffer[30];
-            sprintf(buffer, "%02d:%02d:%02d", (epoch % 86400L) / 3600, (epoch % 3600) / 60, epoch % 60);
-            return String(buffer);
-        }
-        intMillis = millis();
+        updateTimeFromServer(address, timezone);
     }
 
     if (lastEpoch != 0)
@@ -135,7 +146,6 @@ String M5_Ethernet_NtpClient::readYear(unsigned long Epoch)
     }
     return String("Year not available");
 }
-
 
 String M5_Ethernet_NtpClient::readMonth()
 {
