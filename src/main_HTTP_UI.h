@@ -101,7 +101,7 @@ static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART =
     "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-static void jpegStream(EthernetClient *client)
+static void jpegStream(EthernetClient *client, String *page)
 {
   Serial.println("Image stream start");
   client->println("HTTP/1.1 200 OK");
@@ -114,20 +114,18 @@ static void jpegStream(EthernetClient *client)
   {
     last_frame = esp_timer_get_time();
   }
-
   for (;;)
   {
     if (PoECAM.Camera.get())
     {
       PoECAM.setLed(true);
       Serial.printf("pic size: %d\n", PoECAM.Camera.fb->len);
-
       client->print(_STREAM_BOUNDARY);
       client->printf(_STREAM_PART, PoECAM.Camera.fb);
       int32_t to_sends = PoECAM.Camera.fb->len;
       int32_t now_sends = 0;
       uint8_t *out_buf = PoECAM.Camera.fb->buf;
-      uint32_t packet_len = 8 * 1024;
+      uint32_t packet_len = 1 * 1024;
       while (to_sends > 0)
       {
         now_sends = to_sends > packet_len ? packet_len : to_sends;
@@ -137,23 +135,18 @@ static void jpegStream(EthernetClient *client)
         }
         out_buf += now_sends;
         to_sends -= packet_len;
-        
       }
-
       int64_t fr_end = esp_timer_get_time();
       int64_t frame_time = fr_end - last_frame;
       last_frame = fr_end;
       frame_time /= 1000;
-      Serial.printf("MJPG: %luKB %lums (%.1ffps)\r\n",
-                    (long unsigned int)(PoECAM.Camera.fb->len / 1024),
-                    (long unsigned int)frame_time,
-                    1000.0 / (long unsigned int)frame_time);
-
+      Serial.printf("MJPG: %luKB %lums (%.1ffps)\r\n", (long unsigned int)(PoECAM.Camera.fb->len / 1024), (long unsigned int)frame_time, 1000.0 / (long unsigned int)frame_time);
       PoECAM.Camera.free();
       PoECAM.setLed(false);
     }
-  }
 
+    if(*page != "view.html")break;
+  }
 client_exit:
   PoECAM.Camera.free();
   PoECAM.setLed(0);
@@ -167,7 +160,7 @@ void sendPage(EthernetClient client, String page)
 
   if (page == "view.html")
   {
-    jpegStream(&client);
+    jpegStream(&client, &page);
   }
   else if (page == "config.html")
   {

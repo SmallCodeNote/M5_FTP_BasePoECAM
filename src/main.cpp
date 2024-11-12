@@ -83,14 +83,14 @@ void setup()
   NtpClient.getTime(ntp_address, +9);
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 6, NULL, 1);
+  xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 6, NULL, 0);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 5, NULL, 1);
   xTaskCreatePinnedToCore(ShotLoop, "ShotLoop", 4096, NULL, 3, NULL, 1);
 }
 
 void loop()
 {
-  delay(209);
+  delay(189);
   HTTP_UI();
   Ethernet.maintain();
 }
@@ -102,7 +102,7 @@ void TimeUpdateLoop(void *arg)
 
   while (1)
   {
-    delay(89);
+    delay(200);
     String timeLine = NtpClient.getTime(ntp_address, +9);
     if (lastepoc > NtpClient.currentEpoch)
       lastepoc = 0;
@@ -123,8 +123,8 @@ void TimeServerAccessLoop(void *arg)
   unsigned long count = 0;
   while (1)
   {
-    delay(1000);
-    if (count > 60)
+    delay(10000);
+    if (count > 6)
     {
       NtpClient.updateTimeFromServer(ntp_address, +9);
       count = 0;
@@ -140,7 +140,7 @@ void ButtonKeepCountLoop(void *arg)
 
   while (1)
   {
-    delay(97);
+    delay(1000);
     PoECAM.update();
 
     if (PoECAM.BtnA.isPressed())
@@ -154,14 +154,14 @@ void ButtonKeepCountLoop(void *arg)
       PushKeepSubSecCounter = 0;
     }
 
-    if (PushKeepSubSecCounter > 60)
+    if (PushKeepSubSecCounter > 6)
       break;
   }
 
   bool LED_ON = true;
   while (1)
   {
-    delay(97);
+    delay(1000);
 
     PoECAM.update();
     if (PoECAM.BtnA.wasReleased())
