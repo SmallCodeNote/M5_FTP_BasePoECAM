@@ -23,12 +23,54 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-//#include <M5Unified.h>
-#include "M5PoECAM.h"
+#include <M5Unified.h>
 #include <Arduino.h>
 #include <SPI.h>
 #include <M5_Ethernet.h>
-#include "M5_Ethernet_FtpClient.hpp"
+#include "M5_Ethernet_FtpClient.h"
+
+/* Add Log_Class.hpp
+    /// Overload
+    void print(const __FlashStringHelper* string);
+    void println(const __FlashStringHelper* string);
+    void println(const String& string);
+    void print(const IPAddress& ip);
+    void print(uint16_t value);
+    void println(uint16_t value);
+*/
+
+// Log_Class overload
+namespace m5
+{
+  void Log_Class::print(const __FlashStringHelper *string)
+  {
+    return printf_P(reinterpret_cast<const char *>(string));
+  }
+
+  void Log_Class::println(const __FlashStringHelper *string)
+  {
+    return printf_P(reinterpret_cast<const char *>(string));
+  }
+
+  void Log_Class::println(const String &string)
+  {
+    return printf("%s\n", string.c_str());
+  }
+
+  void Log_Class::print(const IPAddress &ip)
+  {
+    return printf("%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
+  }
+  void Log_Class::print(uint16_t value)
+  {
+    return printf("%u", value);
+  }
+
+  void Log_Class::println(uint16_t value)
+  {
+    return printf("%u\n", value);
+  }
+}
 
 M5_Ethernet_FtpClient::M5_Ethernet_FtpClient(String _serverAdress, uint16_t _port, String _userName, String _passWord, uint16_t _timeout)
 {
@@ -47,6 +89,24 @@ M5_Ethernet_FtpClient::M5_Ethernet_FtpClient(String _serverAdress, String _userN
   port = FTP_PORT;
   timeout = _timeout;
 }
+
+String M5_Ethernet_FtpClient::GetServerAddress() { return serverAdress; };
+
+bool M5_Ethernet_FtpClient::SetUserName(String _userName)
+{
+  userName = _userName;
+  return true;
+};
+bool M5_Ethernet_FtpClient::SetPassWord(String _passWord)
+{
+  passWord = _passWord;
+  return true;
+};
+bool M5_Ethernet_FtpClient::SetServerAddress(String _serverAdress)
+{
+  serverAdress = _serverAdress;
+  return true;
+};
 
 EthernetClient *M5_Ethernet_FtpClient::GetDataClient()
 {
@@ -68,7 +128,7 @@ bool M5_Ethernet_FtpClient::isErrorCode(uint16_t responseCode)
  */
 uint16_t M5_Ethernet_FtpClient::OpenConnection()
 {
-  int responceCode = 200;
+  int responceCode = FTP_RESCODE_ACTION_SUCCESS;
   FTP_LOGINFO1(F("Connecting to: "), serverAdress);
 
 #if ((ESP32) && !FTP_CLIENT_USING_ETHERNET)
@@ -588,10 +648,9 @@ uint16_t M5_Ethernet_FtpClient::AppendTextLine(String filePath, String textLine)
   return CloseDataClient();
 }
 
-
 /////////////////////////////////////////////
 
-uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data,int datalength)
+uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data, int datalength)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
   if (isErrorCode(InitAsciiPassiveMode()))
@@ -600,7 +659,7 @@ uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data,
   if (isErrorCode(AppendFile(filePath)))
     return responseCode;
 
-  if (isErrorCode(WriteData(data,datalength)))
+  if (isErrorCode(WriteData(data, datalength)))
     return responseCode;
 
   return CloseDataClient();
@@ -724,7 +783,6 @@ uint16_t M5_Ethernet_FtpClient::DownloadFile(const char *filename, unsigned char
 
   return responseCode;
 }
-
 
 /////////////////////////////////////////////
 

@@ -23,12 +23,12 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
-//#include <M5Unified.h>
-#include "M5PoECAM.h"
+#include <M5Unified.h>
 #include <Arduino.h>
 #include <SPI.h>
 #include <M5_Ethernet.h>
 #include <vector>
+#include <pgmspace.h>
 
 #ifndef M5_Ethernet_FtpClient_H
 #define M5_Ethernet_FtpClient_H
@@ -84,6 +84,7 @@ private:
     String userName;
     String passWord;
     String serverAdress;
+
     uint16_t port;
 
     bool _isConnected = false;
@@ -115,7 +116,7 @@ public:
     uint16_t NewFile(String fileName);
     uint16_t AppendFile(String fileName);
     uint16_t AppendTextLine(String filePath, String textLine);
-    uint16_t AppendData(String filePath, unsigned char *data,int datalength);
+    uint16_t AppendData(String filePath, unsigned char *data, int datalength);
     uint16_t WriteData(unsigned char *data, int dataLength);
     uint16_t WriteData(String data);
     uint16_t CloseDataClient();
@@ -132,10 +133,16 @@ public:
     uint16_t ContentListWithListCommand(const char *dir, String *list);
     uint16_t DownloadString(const char *filename, String &str);
     uint16_t DownloadFile(const char *filename, unsigned char *buf, size_t length, bool printUART = false);
+
+    String GetServerAddress() ;
+    bool SetUserName(String _userName);
+    bool SetPassWord(String _passWord);
+    bool SetServerAddress(String _serverAdress);
 };
 
 // #define FTP_DEBUG_OUTPUT M5.Lcd
-#define FTP_DEBUG_OUTPUT      Serial
+// #define FTP_DEBUG_OUTPUT      Serial
+#define FTP_DEBUG_OUTPUT M5.Log
 
 const char FTP_MARK[] = "[FTP] ";
 const char FTP_SPACE[] = " ";

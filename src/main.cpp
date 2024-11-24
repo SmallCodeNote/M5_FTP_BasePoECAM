@@ -1,13 +1,26 @@
-#include "M5PoECAM.h"
+#include <M5Unified.h>
 #include <SPI.h>
+// #include <Wire.h>
 #include <M5_Ethernet.h>
-#include <time.h>
+// #include <time.h>
 #include <EEPROM.h>
-#include "M5_Ethernet_FtpClient.hpp"
-#include "M5_Ethernet_NtpClient.hpp"
+#include "M5PoECAM.h"
+#include "M5_Ethernet_FtpClient.h"
+#include "M5_Ethernet_NtpClient.h"
+#include "M5_GetBoardName.h"
 
+#include "main.h"
 #include "main_EEPROM_handler.h"
 #include "main_HTTP_UI.h"
+#include "main_Loop.h"
+
+#include "esp_mac.h"
+
+// == M5AtomS3R_Bus ==
+/*#define SCK 5
+#define MISO 7
+#define MOSI 8
+#define CS 6*/
 
 // == M5PoECAM_Bus ==
 #define SCK 23
@@ -24,32 +37,32 @@ void ShotTask(void *arg);
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 EthernetClient FtpClient(21);
-M5_Ethernet_FtpClient ftp(ftp_address, ftp_user, ftp_pass, 60000);
+M5_Ethernet_FtpClient ftp(ftpSrvIP_String, ftp_user, ftp_pass, 60000);
+M5_Ethernet_NtpClient NtpClient;
 
 bool UnitEnable = true;
 
-bool EthernetBegin()
+String getInterfaceMacAddress(esp_mac_type_t interface)
 {
-  Serial.println("MAX_SOCK_NUM = " + String(MAX_SOCK_NUM));
-  if (MAX_SOCK_NUM < 8)
+
+  String macString = "";
+  unsigned char mac_base[6] = {0};
+  if (esp_read_mac(mac_base, interface) == ESP_OK)
   {
-    Serial.println("need overwrite MAX_SOCK_NUM = 8 in M5_Ethernet.h");
-    UnitEnable = false;
-    return false;
+    char buffer[18]; // 6*2 characters for hex + 5 characters for colons + 1 character for null terminator
+    sprintf(buffer, "%02X:%02X:%02X:%02X:%02X:%02X", mac_base[0], mac_base[1], mac_base[2], mac_base[3], mac_base[4], mac_base[5]);
+    macString = buffer;
   }
 
-  SPI.begin(SCK, MISO, MOSI, -1);
-  Ethernet.init(CS);
-  Ethernet.begin(mac, deviceIP);
-
-  return UnitEnable;
+  return macString;
 }
 
 bool CameraBegin()
 {
+  PoECAM.begin();
   if (!PoECAM.Camera.begin())
   {
-    Serial.println("Camera Init Fail");
+    M5_LOGW("Camera Init Fail");
     UnitEnable = false;
     return false;
   }
@@ -60,251 +73,130 @@ bool CameraBegin()
   PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, 0);
   PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, 0);
 
+  PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, 0);
+  PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, 1);
+
+  M5_LOGI("Camera Init Success");
   return UnitEnable;
+}
+
+bool EthernetBegin()
+{
+  // CONFIG_IDF_TARGET_ESP32S3;
+  // CONFIG_IDF_TARGET_ESP32;
+
+  M5_LOGI("MAX_SOCK_NUM = %s", String(MAX_SOCK_NUM));
+  if (MAX_SOCK_NUM < 8)
+  {
+    M5_LOGE("need overwrite MAX_SOCK_NUM = 8 in M5_Ethernet.h");
+    UnitEnable = false;
+    return false;
+  }
+  SPI.begin(SCK, MISO, MOSI, -1);
+  Ethernet.init(CS);
+
+  M5_LOGI("ESP_MAC_WIFI_STA  %s", getInterfaceMacAddress(ESP_MAC_WIFI_STA).c_str());
+  M5_LOGI("ESP_MAC_WIFI_SOFTAP  %s", getInterfaceMacAddress(ESP_MAC_WIFI_SOFTAP).c_str());
+  M5_LOGI("ESP_MAC_BT  %s", getInterfaceMacAddress(ESP_MAC_BT).c_str());
+  M5_LOGI("ESP_MAC_ETH  %s", getInterfaceMacAddress(ESP_MAC_ETH).c_str());
+
+  esp_read_mac(mac, ESP_MAC_ETH);
+  Ethernet.begin(mac, storeData.deviceIP);
+
+  M5_LOGI("Ethernet.begin  %s", deviceIP_String.c_str());
+
+  return UnitEnable;
+}
+
+void updateFTP_ParameterFromGrobalStrings()
+{
+  M5_LOGD("ftpSrvIP_String: %s", ftpSrvIP_String);
+  ftp.SetServerAddress(ftpSrvIP_String);
+  ftp.SetUserName(ftp_user);
+  ftp.SetPassWord(ftp_pass);
+
+  M5_LOGD("GetServerAddress: %s", ftp.GetServerAddress());
+}
+void unit_flash_init(void) {
+    pinMode(FLASH_EN_PIN, OUTPUT);
+    digitalWrite(FLASH_EN_PIN, LOW);
 }
 
 void setup()
 {
-  PoECAM.begin();
   if (!CameraBegin())
     return;
 
+  // auto cfg = M5.config();
+  // M5.begin(cfg);
+
+  M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
+  delay(1000); // M5_Log starting wait
+
+  M5_LOGI("BoardName = %s", getBoardName(M5.getBoard()));
+
   EEPROM.begin(STORE_DATA_SIZE);
-  // LoadEEPROM();
-  InitEEPROM();
-  M5_Ethernet_FtpClient ftp(ftp_address, ftp_user, ftp_pass, 60000);
+  LoadEEPROM();
+  updateFTP_ParameterFromGrobalStrings();
+
+  M5_LOGI("deviceIP_String = %s", deviceIP_String.c_str());
+  M5_LOGI("DisplayCount = %d", M5.getDisplayCount());
 
   if (!EthernetBegin())
     return;
 
-  HttpServer.begin();
-
+  HttpUIServer.begin();
   NtpClient.begin();
-  NtpClient.getTime(ntp_address, +9);
+  NtpClient.getTime(ntpSrvIP_String, (int)(storeData.timeZoneOffset));
+
+  unit_flash_init();
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 2, NULL, 0);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 6, NULL, 0);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 5, NULL, 1);
   xTaskCreatePinnedToCore(ShotLoop, "ShotLoop", 4096, NULL, 3, NULL, 1);
+
+  if (M5.getDisplayCount() > 0)
+  {
+    M5.Display.println(String(storeData.deviceName));
+    M5.Display.println("Board: " + getBoardName(M5.getBoard()));
+    M5.Display.println("HOST: " + deviceIP_String);
+  }
 }
 
 void loop()
 {
   delay(189);
   HTTP_UI();
-  Ethernet.maintain();
-}
 
-void TimeUpdateLoop(void *arg)
-{
-  Serial.println("TimeUpdateLoop Start  ");
-  unsigned long lastepoc = 0;
-
-  while (1)
+  if (M5.getDisplayCount() > 0)
   {
-    delay(200);
-    String timeLine = NtpClient.getTime(ntp_address, +9);
-    if (lastepoc > NtpClient.currentEpoch)
-      lastepoc = 0;
+    M5.Display.setTextFont(6);
+    M5.Display.setCursor(8, 30);
+    M5.Display.println(SensorValueString);
 
-    if (lastepoc + 10 <= NtpClient.currentEpoch)
+    M5.Display.setTextFont(1);
+    M5.Display.println("  " + getInterfaceMacAddress(ESP_MAC_WIFI_STA));
+    M5.Display.println("  " + getInterfaceMacAddress(ESP_MAC_WIFI_SOFTAP));
+    M5.Display.println("  " + getInterfaceMacAddress(ESP_MAC_BT));
+    M5.Display.println("  " + getInterfaceMacAddress(ESP_MAC_ETH));
+
+    String ntpAddressLine = "NTP:" + ntpSrvIP_String;
+    for (u_int8_t i = 0; i < (21 - ntpAddressLine.length()) / 2; i++)
     {
-      Serial.println(timeLine);
-      lastepoc = NtpClient.currentEpoch;
-    }
-  }
-
-  vTaskDelete(NULL);
-}
-
-void TimeServerAccessLoop(void *arg)
-{
-  Serial.println("TimeServerAccessLoop Start  ");
-  unsigned long count = 0;
-  while (1)
-  {
-    delay(10000);
-    if (count > 6)
-    {
-      NtpClient.updateTimeFromServer(ntp_address, +9);
-      count = 0;
-    }
-  }
-
-  vTaskDelete(NULL);
-}
-void ButtonKeepCountLoop(void *arg)
-{
-  Serial.println("ButtonKeepCountLoop Start  ");
-  int PushKeepSubSecCounter = 0;
-
-  while (1)
-  {
-    delay(1000);
-    PoECAM.update();
-
-    if (PoECAM.BtnA.isPressed())
-    {
-      Serial.println("BtnA Pressed");
-      PushKeepSubSecCounter++;
-    }
-    else if (PoECAM.BtnA.wasReleased())
-    {
-      Serial.println("BtnA Released");
-      PushKeepSubSecCounter = 0;
+      M5.Display.print(" ");
     }
 
-    if (PushKeepSubSecCounter > 6)
-      break;
-  }
+    M5.Display.println(ntpAddressLine);
 
-  bool LED_ON = true;
-  while (1)
-  {
-    delay(1000);
-
-    PoECAM.update();
-    if (PoECAM.BtnA.wasReleased())
-      break;
-
-    LED_ON = !LED_ON;
-    PoECAM.setLed(LED_ON);
-  }
-
-  InitEEPROM();
-
-  PoECAM.setLed(true);
-  delay(1000);
-  ESP.restart();
-
-  vTaskDelete(NULL);
-}
-
-typedef struct
-{
-  unsigned long currentEpoch;
-} ShotTaskParams;
-
-unsigned long CheckStartOffset()
-{
-
-  const int intervals[] = {3600, 600, 300, 10, 5};
-  for (int i = 0; i < sizeof(intervals) / sizeof(intervals[0]); i++)
-  {
-    if (storeData.interval % intervals[i] == 0)
+    if (NtpClient.enable())
     {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-bool ShotTaskRun(unsigned long currentEpoch)
-{
-  String ms = NtpClient.readMinute(currentEpoch);
-  char mc0 = ms[0];
-  char mc1 = ms[1];
-  String ss = NtpClient.readSecond(currentEpoch);
-  char sc0 = ss[0];
-  char sc1 = ss[1];
-
-  if (!(storeData.interval % 3600) && mc0 == '0' && (sc0 == '0' && sc1 == '0'))
-    return true;
-  else if (!(storeData.interval % 600) && (mc1 == '0') && (sc0 == '0' && sc1 == '0'))
-    return true;
-  else if (!(storeData.interval % 300) && (mc1 == '0' || mc1 == '5') && (sc0 == '0' && sc1 == '0'))
-    return true;
-  else if (!(storeData.interval % 10) && sc1 == '0')
-    return true;
-  else if (!(storeData.interval % 5) && (sc1 == '0' || sc1 == '5'))
-    return true;
-
-  return false;
-}
-
-void ShotLoop(void *arg)
-{
-  unsigned long lastWriteEpoc = 0;
-  unsigned long lastCheckEpoc = 0;
-
-  Serial.println("ShotLoop Start  ");
-  if (storeData.interval < 1)
-    storeData.interval = 1;
-
-  while (1)
-  {
-    unsigned long currentEpoch = NtpClient.currentEpoch;
-    if (currentEpoch - lastCheckEpoc > 1)
-    {
-      Serial.println(">>EpocDeltaOver 1:");
-    }
-    lastCheckEpoc = currentEpoch;
-    unsigned long checkStartOffset = CheckStartOffset();
-    bool Flag0 = lastWriteEpoc + storeData.interval <= currentEpoch + checkStartOffset;
-
-    if (Flag0)
-    {
-      if (checkStartOffset == 0 || ShotTaskRun(currentEpoch))
-      {
-        xTaskCreatePinnedToCore(ShotTask, "ShotTask", 4096, &currentEpoch, 4, NULL, 1);
-
-        if (currentEpoch < lastWriteEpoc)
-        {
-          lastWriteEpoc = 0;
-        }
-        else
-        {
-          lastWriteEpoc = currentEpoch;
-        }
-        delay(1000);
-      }
-      else
-      {
-        delay(100);
-      }
+      M5.Display.println(" " + NtpClient.convertTimeEpochToString() + "   ");
     }
     else
     {
-      delay(100);
+      M5.Display.println("time information can not use now.     ");
     }
   }
-
-  vTaskDelete(NULL);
-}
-
-void ShotTask(void *param)
-{
-  String directoryPath = "/" + deviceName;
-
-  ShotTaskParams *taskParam = (ShotTaskParams *)param;
-  unsigned long currentEpoch = taskParam->currentEpoch;
-
-  String ss = NtpClient.readSecond(currentEpoch);
-  String mm = NtpClient.readMinute(currentEpoch);
-  String HH = NtpClient.readHour(currentEpoch);
-  String DD = NtpClient.readDay(currentEpoch);
-  String MM = NtpClient.readMonth(currentEpoch);
-  String YYYY = NtpClient.readYear(currentEpoch);
-
-  if (storeData.interval < 60)
-  {
-    directoryPath = "/" + deviceName + "/" + YYYY + "/" + YYYY + MM + "/" + YYYY + MM + DD + "/" + HH;
-  }
-  else
-  {
-    directoryPath = "/" + deviceName + "/" + YYYY + "/" + YYYY + MM + "/" + YYYY + MM + DD;
-  }
-
-  String filePath = directoryPath + "/" + YYYY + MM + DD + "_" + HH + mm + ss;
-
-  if (PoECAM.Camera.get())
-  {
-    ftp.OpenConnection();
-    ftp.MakeDirRecursive(directoryPath);
-    ftp.AppendData(filePath + ".jpg", (u_char *)(PoECAM.Camera.fb->buf), (int)(PoECAM.Camera.fb->len));
-    ftp.CloseConnection();
-    PoECAM.Camera.free();
-  }
-
-  vTaskDelete(NULL);
+  Ethernet.maintain();
 }
