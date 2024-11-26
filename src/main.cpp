@@ -66,15 +66,38 @@ bool CameraBegin()
     UnitEnable = false;
     return false;
   }
+  /*
+    PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
+    PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, FRAMESIZE_QVGA);
+    PoECAM.Camera.sensor->set_vflip(PoECAM.Camera.sensor, 1);
+    PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, 0);
+    PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, 0);
 
-  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
-  PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, FRAMESIZE_QVGA);
-  PoECAM.Camera.sensor->set_vflip(PoECAM.Camera.sensor, 1);
-  PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, 0);
-  PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, 0);
+    PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, 0);
+    PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, 1);
+  */
 
-  PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, 0);
-  PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, 1);
+  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
+  PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, storeData.framesize);
+  PoECAM.Camera.sensor->set_contrast(PoECAM.Camera.sensor, storeData.contrast);
+  PoECAM.Camera.sensor->set_brightness(PoECAM.Camera.sensor, storeData.brightness);
+  PoECAM.Camera.sensor->set_saturation(PoECAM.Camera.sensor, storeData.saturation);
+  PoECAM.Camera.sensor->set_sharpness(PoECAM.Camera.sensor, storeData.sharpness);
+  PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, storeData.denoise);
+  PoECAM.Camera.sensor->set_quality(PoECAM.Camera.sensor, storeData.quality);
+  PoECAM.Camera.sensor->set_colorbar(PoECAM.Camera.sensor, storeData.colorbar);
+  PoECAM.Camera.sensor->set_whitebal(PoECAM.Camera.sensor, storeData.whitebal);
+  PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, storeData.gain_ctrl);
+  PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, storeData.exposure_ctrl);
+  PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, storeData.hmirror);
+  PoECAM.Camera.sensor->set_vflip(PoECAM.Camera.sensor, storeData.vflip);
+  PoECAM.Camera.sensor->set_aec2(PoECAM.Camera.sensor, storeData.aec2);
+  PoECAM.Camera.sensor->set_awb_gain(PoECAM.Camera.sensor, storeData.awb_gain);
+  PoECAM.Camera.sensor->set_agc_gain(PoECAM.Camera.sensor, storeData.agc_gain);
+  PoECAM.Camera.sensor->set_aec_value(PoECAM.Camera.sensor, storeData.aec_value);
+  PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, storeData.special_effect);
+  PoECAM.Camera.sensor->set_wb_mode(PoECAM.Camera.sensor, storeData.wb_mode);
+  PoECAM.Camera.sensor->set_ae_level(PoECAM.Camera.sensor, storeData.ae_level);
 
   M5_LOGI("Camera Init Success");
   return UnitEnable;
@@ -117,9 +140,10 @@ void updateFTP_ParameterFromGrobalStrings()
 
   M5_LOGD("GetServerAddress: %s", ftp.GetServerAddress());
 }
-void unit_flash_init(void) {
-    pinMode(FLASH_EN_PIN, OUTPUT);
-    digitalWrite(FLASH_EN_PIN, LOW);
+void unit_flash_init(void)
+{
+  pinMode(FLASH_EN_PIN, OUTPUT);
+  digitalWrite(FLASH_EN_PIN, LOW);
 }
 
 void setup()

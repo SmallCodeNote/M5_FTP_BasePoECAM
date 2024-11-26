@@ -29,7 +29,7 @@ void M5_Ethernet_NtpClient::updateTimeFromServer(String address, int timezone)
         lastMillis = millis();
         intMillis = millis();
         currentEpoch = lastEpoch;
-        
+
         M5_LOGI("Success UpdateFromNTPserver %s , timezone = %d", address, timezone);
         return;
     }
@@ -86,6 +86,9 @@ String M5_Ethernet_NtpClient::convertTimeEpochToString(String format)
 
 String M5_Ethernet_NtpClient::convertTimeEpochToString(String format, unsigned long _currentEpoch)
 {
+    if (_currentEpoch == 0)
+        return String("Time information is not available.");
+
     String ss = readSecond(_currentEpoch);
     String mm = readMinute(_currentEpoch);
     String HH = readHour(_currentEpoch);

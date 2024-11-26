@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 256                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x50
+#define EEPROM_CHECK_CODE 0x52
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -26,6 +26,46 @@ struct DATA_SET
     u_int8_t flashIntensityMode;
     u_int16_t flashLength;
 
+    // Sensor values
+    pixformat_t pixformat;
+    framesize_t framesize;
+    int contrast;
+    int brightness;
+    int saturation;
+    int sharpness;
+    int denoise;
+    gainceiling_t gainceiling;
+    int quality;
+    int colorbar;
+    int whitebal;
+    int gain_ctrl;
+    int exposure_ctrl;
+    int hmirror;
+    int vflip;
+
+    int aec2;
+    int awb_gain;
+    int agc_gain;
+    int aec_value;
+
+    int special_effect;
+    int wb_mode;
+    int ae_level;
+/*
+    int dcw;
+    int bpc;
+    int wpc;
+
+    int raw_gma;
+    int lenc;
+
+    int get_reg;
+    int set_reg;
+    int set_res_raw;
+    int set_pll;
+    int set_xclk;
+*/
+
     /// @brief deviceName
     char deviceName[STORE_DATA_DEVICENAME_MAXLENGTH + 1];
     char ftp_user[32];
@@ -41,8 +81,52 @@ extern String ftpSaveInterval;
 extern String chartUpdateInterval;
 extern String chartShowPointCount;
 extern String timeZoneOffset;
+
 extern String flashIntensityMode;
 extern String flashLength;
+
+extern String flashIntensityMode;
+extern String flashLength;
+
+
+extern String pixformat;
+extern String framesize;
+extern String contrast;
+extern String brightness;
+extern String saturation;
+extern String sharpness;
+extern String denoise;
+extern String gainceiling;
+extern String quality;
+extern String colorbar;
+extern String whitebal;
+extern String gain_ctrl;
+extern String exposure_ctrl;
+extern String hmirror;
+extern String vflip;
+
+extern String aec2;
+extern String awb_gain;
+extern String agc_gain;
+extern String aec_value;
+
+extern String special_effect;
+extern String wb_mode;
+extern String ae_level;
+/*
+extern String dcw;
+extern String bpc;
+extern String wpc;
+
+extern String raw_gma;
+extern String lenc;
+
+extern String get_reg;
+extern String set_reg;
+extern String set_res_raw;
+extern String set_pll;
+extern String set_xclk;
+*/
 
 extern String deviceName;
 extern String deviceIP_String;

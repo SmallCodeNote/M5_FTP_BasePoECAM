@@ -26,10 +26,28 @@
     client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
     client.print(inputName);                                                                     \
+    client.println("\" size=\"4\" required>");                                                              \
+    client.println("</li>");                                                                     \
+  }
+#define HTML_PUT_LI_WIDEINPUT(inputName)                                                             \
+  {                                                                                              \
+    client.println("<li>");                                                                      \
+    client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
+    client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
+    client.print(inputName);                                                                     \
     client.println("\" required>");                                                              \
     client.println("</li>");                                                                     \
   }
-
+#define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName,comment)                                                             \
+  {                                                                                              \
+    client.println("<li>");                                                                      \
+    client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
+    client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
+    client.print(inputName);                                                                     \
+    client.println("\" size=\"4\" required>");                                                              \
+    client.printf("[%s]", comment);                                                                       \
+    client.println("</li>");                                                                     \
+  }
 // used to image stream
 #define PART_BOUNDARY "123456789000000000000987654321"
 static const char *_STREAM_CONTENT_TYPE =
