@@ -57,7 +57,7 @@ String getInterfaceMacAddress(esp_mac_type_t interface)
   return macString;
 }
 
-bool CameraBegin()
+bool PoECamUnitBegin()
 {
   PoECAM.begin();
   if (!PoECAM.Camera.begin())
@@ -76,6 +76,13 @@ bool CameraBegin()
     PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, 0);
     PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, 1);
   */
+
+  M5_LOGI("Camera Init Success");
+  return UnitEnable;
+}
+
+void CameraSensorSetup()
+{
 
   PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
   PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, storeData.framesize);
@@ -98,9 +105,6 @@ bool CameraBegin()
   PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, storeData.special_effect);
   PoECAM.Camera.sensor->set_wb_mode(PoECAM.Camera.sensor, storeData.wb_mode);
   PoECAM.Camera.sensor->set_ae_level(PoECAM.Camera.sensor, storeData.ae_level);
-
-  M5_LOGI("Camera Init Success");
-  return UnitEnable;
 }
 
 bool EthernetBegin()
@@ -148,20 +152,23 @@ void unit_flash_init(void)
 
 void setup()
 {
-  if (!CameraBegin())
+  M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
+  delay(1000); // M5_Log starting wait
+
+  M5_LOGI("PoECamUnitBegin");
+  if (!PoECamUnitBegin())
     return;
 
   // auto cfg = M5.config();
   // M5.begin(cfg);
-
-  M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
-  delay(1000); // M5_Log starting wait
 
   M5_LOGI("BoardName = %s", getBoardName(M5.getBoard()));
 
   EEPROM.begin(STORE_DATA_SIZE);
   LoadEEPROM();
   updateFTP_ParameterFromGrobalStrings();
+
+  CameraSensorSetup();
 
   M5_LOGI("deviceIP_String = %s", deviceIP_String.c_str());
   M5_LOGI("DisplayCount = %d", M5.getDisplayCount());
@@ -175,10 +182,10 @@ void setup()
 
   unit_flash_init();
 
-  xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 6, NULL, 0);
-  xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 5, NULL, 1);
-  xTaskCreatePinnedToCore(ShotLoop, "ShotLoop", 4096, NULL, 3, NULL, 1);
+  xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 0);
+  xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 0, NULL, 1);
+  xTaskCreatePinnedToCore(ShotLoop, "ShotLoop", 4096, NULL, 1, NULL, 1);
 
   if (M5.getDisplayCount() > 0)
   {

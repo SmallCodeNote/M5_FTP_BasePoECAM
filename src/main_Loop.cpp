@@ -286,3 +286,4 @@ void ShotTask(void *param)
   LastWriteDirectoryPath = directoryPath;
   vTaskDelete(NULL);
 }
+

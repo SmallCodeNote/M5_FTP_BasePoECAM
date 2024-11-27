@@ -219,12 +219,12 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   client.println("<ul>");
 
   String currentLine = "";
-  HTML_PUT_LI_INPUT(deviceName);
-  HTML_PUT_LI_INPUT(deviceIP_String);
-  HTML_PUT_LI_INPUT(ntpSrvIP_String);
-  HTML_PUT_LI_INPUT(ftpSrvIP_String);
-  HTML_PUT_LI_INPUT(ftp_user);
-  HTML_PUT_LI_INPUT(ftp_pass);
+  HTML_PUT_LI_WIDEINPUT(deviceName);
+  HTML_PUT_LI_WIDEINPUT(deviceIP_String);
+  HTML_PUT_LI_WIDEINPUT(ntpSrvIP_String);
+  HTML_PUT_LI_WIDEINPUT(ftpSrvIP_String);
+  HTML_PUT_LI_WIDEINPUT(ftp_user);
+  HTML_PUT_LI_WIDEINPUT(ftp_pass);
   HTML_PUT_LI_INPUT(ftpSaveInterval);
   HTML_PUT_LI_INPUT(chartShowPointCount);
   HTML_PUT_LI_INPUT(chartUpdateInterval);
