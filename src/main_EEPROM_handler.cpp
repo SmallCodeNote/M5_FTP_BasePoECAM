@@ -33,8 +33,8 @@ String exposure_ctrl = "1"; // Exposure control disabled|enabled [0 | 1]
 String hmirror = "0";       // Horizontal flip [0 | 1]
 String vflip = "1";         // Vertical flip [0 | 1]
 
-String aec2 = "1";      // Automatic exposure control 2 disabled|enabled [0 | 1]
-String awb_gain = "1";  // Automatic white balance gain disabled|enabled [0 | 1]
+String aec2 = "0";      // Automatic exposure control 2 disabled|enabled [0 | 1]
+String awb_gain = "0";  // Automatic white balance gain disabled|enabled [0 | 1]
 String agc_gain = "0";  // Automatic gain control [0 - 30]
 String aec_value = "0"; // Automatic exposure control [0 - 1200]
 

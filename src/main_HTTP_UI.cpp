@@ -49,7 +49,72 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
-static void HTTP_UI_STREAM_JPEG(EthernetClient client, String page)
+void HTTP_UI_PAGE_top(EthernetClient client)
+{
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
+
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<a href=\"/capture.jpg\">Stream</a><br>");
+  client.println("<a href=\"/view.html\">View Page</a><br>");
+  client.println("<a href=\"/chart.html\">Chart Page</a><br>");
+  client.println("<a href=\"/unitTime.html\">Unit Time</a><br>");
+
+  client.println("<br>");
+  client.println("<hr>");
+  client.println("<br>");
+
+  client.println("<a href=\"/configParam.html\">Config Parameter Page</a><br>");
+  client.println("<a href=\"/configCamera.html\">Config Camera Page</a><br>");
+  client.println("<a href=\"/configChart.html\">Config Chart Page</a><br>");
+  client.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
+
+void HTTP_UI_PAGE_view(EthernetClient client)
+{
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
+
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<br />");
+
+  client.println("<ul id=\"sensorData\">");
+  client.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
+  client.println("</ul>");
+
+  client.println("<img id=\"sensorImage\" src=\"/sensorImageNow.jpg\" alt=\"Sensor Image\" />");
+
+  client.println("<script>");
+  client.println("function fetchData() {");
+  client.println("  var xhr = new XMLHttpRequest();");
+  client.println("  xhr.onreadystatechange = function() {");
+  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  client.println("      var data = JSON.parse(xhr.responseText);");
+  client.println("      document.getElementById('distance').innerText = data.distance;");
+  client.println("    }");
+  client.println("  };");
+  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
+  client.println("  xhr.send();");
+  client.println("}");
+  client.println("function refreshImage() {");
+  client.println("  var img = document.getElementById('sensorImage');");
+  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  client.println("}");
+  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
+  client.printf("setInterval(refreshImage, %u);", storeData.chartUpdateInterval);
+  client.println("fetchData();");
+  client.println("refreshImage();");
+  client.println("</script>");
+
+  client.println("<br />");
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
+
+void HTTP_UI_STREAM_JPEG(EthernetClient client)
 {
   M5_LOGI("Image stream start");
 
@@ -68,7 +133,6 @@ static void HTTP_UI_STREAM_JPEG(EthernetClient client, String page)
     if (PoECAM.Camera.get())
     {
       PoECAM.setLed(true);
-      M5_LOGI("pic size: %d\n", PoECAM.Camera.fb->len);
       client.print(_STREAM_BOUNDARY);
       client.printf(_STREAM_PART, PoECAM.Camera.fb);
       int32_t to_sends = PoECAM.Camera.fb->len;
@@ -93,49 +157,55 @@ static void HTTP_UI_STREAM_JPEG(EthernetClient client, String page)
       PoECAM.Camera.free();
       PoECAM.setLed(false);
     }
-
-    if (page != "view.html")
-      break;
+    delay(10);
   }
 client_exit:
   PoECAM.Camera.free();
   PoECAM.setLed(0);
   client.stop();
   M5_LOGI("Image stream end\r\n");
+  
 }
 
-void HTTP_UI_PAGE_view(EthernetClient client)
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  M5_LOGI("Sending JPEG image");
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: image/jpeg");
+  client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println();
 
-  client.println("<ul id=\"sensorData\">");
-  client.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
-  client.println("</ul>");
+  if (PoECAM.Camera.get())
+  {
+    PoECAM.setLed(true);
+    int32_t to_sends = PoECAM.Camera.fb->len;
+    int32_t now_sends = 0;
+    uint8_t *out_buf = PoECAM.Camera.fb->buf;
+    uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
 
-  client.println("<script>");
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('distance').innerText = data.distance;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
-  client.println("setInterval(fetchData, 1000);");
-  client.println("fetchData();");
-  client.println("</script>");
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        goto client_exit;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+    M5_LOGI("JPEG sent successfully");
+    PoECAM.Camera.free();
+    PoECAM.setLed(false);
+  }
 
-  HTTP_UI_PART_HTMLFooter(client);
+client_exit:
+  PoECAM.Camera.free();
+  PoECAM.setLed(0);
+  client.stop();
+  M5_LOGI("JPEG transmission end");
 }
 
 void HTTP_UI_PAGE_chart(EthernetClient client)
@@ -290,7 +360,7 @@ void HTTP_UI_POST_configParam(EthernetClient client)
 
   HTTP_UI_PART_HTMLFooter(client);
 
-  xTaskCreatePinnedToCore(TaskRestart, "TaskRestart", 4096, NULL, 11, NULL, 1);
+  xTaskCreatePinnedToCore(TaskRestart, "TaskRestart", 4096, NULL, 0, NULL, 1);
 }
 
 void HTTP_UI_PAGE_configCamera(EthernetClient client)
@@ -306,7 +376,7 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
 
   String currentLine = "";
   HTML_PUT_LI_INPUT(flashIntensityMode);
-  HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength,"ms");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength, "ms");
 
   String optionString = " selected";
   int pixformat_i = pixformat.toInt();
@@ -378,20 +448,20 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
   HTML_PUT_LI_INPUT_WITH_COMMENT(wb_mode, "0 - 4");
   HTML_PUT_LI_INPUT_WITH_COMMENT(ae_level, "-2 - 2");
 
-/*
-  HTML_PUT_LI_INPUT_WITH_COMMENT(dcw, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(bpc, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(wpc, "0 | 1");
+  /*
+    HTML_PUT_LI_INPUT_WITH_COMMENT(dcw, "0 | 1");
+    HTML_PUT_LI_INPUT_WITH_COMMENT(bpc, "0 | 1");
+    HTML_PUT_LI_INPUT_WITH_COMMENT(wpc, "0 | 1");
 
-  HTML_PUT_LI_INPUT_WITH_COMMENT(raw_gma, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(lenc, "0 | 1");
+    HTML_PUT_LI_INPUT_WITH_COMMENT(raw_gma, "0 | 1");
+    HTML_PUT_LI_INPUT_WITH_COMMENT(lenc, "0 | 1");
 
-  HTML_PUT_LI_INPUT(get_reg);
-  HTML_PUT_LI_INPUT(set_reg);
-  HTML_PUT_LI_INPUT(set_res_raw);
-  HTML_PUT_LI_INPUT(set_pll);
-  HTML_PUT_LI_INPUT(set_xclk);
-*/
+    HTML_PUT_LI_INPUT(get_reg);
+    HTML_PUT_LI_INPUT(set_reg);
+    HTML_PUT_LI_INPUT(set_res_raw);
+    HTML_PUT_LI_INPUT(set_pll);
+    HTML_PUT_LI_INPUT(set_xclk);
+  */
 
   client.println("<li class=\"button\">");
   client.println("<button type=\"submit\">Save</button>");
@@ -475,6 +545,64 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
   client.println("<br />");
   client.println("SUCCESS PARAMETER UPDATE.");
 
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
+
+void HTTP_UI_PAGE_configChart(EthernetClient client)
+{
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
+
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<br />");
+
+  client.println("<form action=\"/configChartSuccess.html\" method=\"post\">");
+  client.println("<ul>");
+
+  String currentLine = "";
+  HTML_PUT_LI_INPUT(chartShowPointCount);
+  HTML_PUT_LI_INPUT(chartUpdateInterval);
+
+  client.println("<li class=\"button\">");
+  client.println("<button type=\"submit\">Save</button>");
+  client.println("</li>");
+  client.println("</ul>");
+  client.println("</form>");
+
+  client.println("<br />");
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
+
+void HTTP_UI_POST_configChart(EthernetClient client)
+{
+  String currentLine = "";
+  // Load post data
+  while (client.available())
+  {
+    char c = client.read();
+    if (c == '\n' && currentLine.length() == 0)
+    {
+      break;
+    }
+    currentLine += c;
+  }
+
+  HTTP_GET_PARAM_FROM_POST(chartShowPointCount);
+  HTTP_GET_PARAM_FROM_POST(chartUpdateInterval);
+
+  PutEEPROM();
+
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<br />");
+  client.println("SUCCESS PARAMETER UPDATE.");
+
+  client.println("<br />");
   client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
   HTTP_UI_PART_HTMLFooter(client);
@@ -647,27 +775,6 @@ void HTTP_UI_PAGE_unitTime(EthernetClient client)
   HTTP_UI_PART_HTMLFooter(client);
 }
 
-void HTTP_UI_PAGE_top(EthernetClient client)
-{
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<a href=\"/view.html\">View Page</a><br>");
-  client.println("<a href=\"/chart.html\">Chart Page</a><br>");
-  client.println("<a href=\"/unitTime.html\">Unit Time</a><br>");
-
-  client.println("<br>");
-  client.println("<hr>");
-  client.println("<br>");
-
-  client.println("<a href=\"/configParam.html\">Config Parameter Page</a><br>");
-  client.println("<a href=\"/configCamera.html\">Config Camera Page</a><br>");
-  client.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
-
-  HTTP_UI_PART_HTMLFooter(client);
-}
-
 void HTTP_UI_PAGE_notFound(EthernetClient client)
 {
   client.println("HTTP/1.1 404 Not Found");
@@ -694,10 +801,13 @@ void sendPage(EthernetClient client, String page)
   {
     HTTP_UI_JSON_unitTimeNow(client);
   }
+  else if (page == "sensorImageNow.jpg")
+  {
+    HTTP_UI_JPEG_sensorImageNow(client);
+  }
   else if (page == "view.html")
   {
-    // HTTP_UI_PAGE_view(client);
-    HTTP_UI_STREAM_JPEG(client, page);
+    HTTP_UI_PAGE_view(client);
   }
   else if (page == "chart.js")
   {
@@ -707,6 +817,10 @@ void sendPage(EthernetClient client, String page)
   {
     HTTP_UI_PAGE_chart(client);
   }
+  else if (page == "capture.jpg")
+  {
+    HTTP_UI_STREAM_JPEG(client);
+  }
   else if (page == "configParam.html")
   {
     HTTP_UI_PAGE_configParam(client);
@@ -714,6 +828,14 @@ void sendPage(EthernetClient client, String page)
   else if (page == "configParamSuccess.html")
   {
     HTTP_UI_POST_configParam(client);
+  }
+  else if (page == "configChart.html")
+  {
+    HTTP_UI_PAGE_configChart(client);
+  }
+  else if (page == "configChartSuccess.html")
+  {
+    HTTP_UI_POST_configChart(client);
   }
   else if (page == "configCamera.html")
   {
@@ -802,6 +924,11 @@ void HTTP_UI()
           getRequest = true;
           page = "unitTimeNow.json";
         }
+        else if (currentLine.endsWith("GET /sensorImageNow.jpg"))
+        {
+          getRequest = true;
+          page = "sensorImageNow.jpg";
+        }
         else if (currentLine.endsWith("GET /chart.js"))
         {
           getRequest = true;
@@ -812,6 +939,11 @@ void HTTP_UI()
           getRequest = true;
           page = "view.html";
         }
+        else if (currentLine.endsWith("GET /capture.jpg"))
+        {
+          getRequest = true;
+          page = "capture.jpg";
+        }
         else if (currentLine.endsWith("GET /chart.html"))
         {
           getRequest = true;
@@ -821,6 +953,11 @@ void HTTP_UI()
         {
           getRequest = true;
           page = "configParam.html";
+        }
+        else if (currentLine.endsWith("GET /configChart.html"))
+        {
+          getRequest = true;
+          page = "configChart.html";
         }
         else if (currentLine.endsWith("GET /configCamera.html"))
         {
@@ -846,6 +983,11 @@ void HTTP_UI()
         {
           getRequest = true;
           page = "configParamSuccess.html";
+        }
+        else if (currentLine.startsWith("POST /configChartSuccess.html"))
+        {
+          getRequest = true;
+          page = "configChartSuccess.html";
         }
         else if (currentLine.startsWith("POST /configCameraSuccess.html"))
         {

@@ -174,7 +174,7 @@ void ShotLoop(void *arg)
         {
           taskParam.currentEpoch = currentEpoch;
           taskParam.tofDeviceValue = tofDeviceValue;
-          xTaskCreatePinnedToCore(ShotTask, "ShotTask", 4096, &taskParam, 4, NULL, 1);
+          xTaskCreatePinnedToCore(ShotTask, "ShotTask", 4096, &taskParam, 1, NULL, 1);
 
           lastWriteEpoc = currentEpoch;
           delay(1000);

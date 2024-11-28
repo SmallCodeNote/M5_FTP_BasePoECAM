@@ -105,6 +105,7 @@ void CameraSensorSetup()
   PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, storeData.special_effect);
   PoECAM.Camera.sensor->set_wb_mode(PoECAM.Camera.sensor, storeData.wb_mode);
   PoECAM.Camera.sensor->set_ae_level(PoECAM.Camera.sensor, storeData.ae_level);
+
 }
 
 bool EthernetBegin()
@@ -144,6 +145,7 @@ void updateFTP_ParameterFromGrobalStrings()
 
   M5_LOGD("GetServerAddress: %s", ftp.GetServerAddress());
 }
+
 void unit_flash_init(void)
 {
   pinMode(FLASH_EN_PIN, OUTPUT);
@@ -153,7 +155,7 @@ void unit_flash_init(void)
 void setup()
 {
   M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
-  delay(1000); // M5_Log starting wait
+  delay(500); // M5_Log starting wait
 
   M5_LOGI("PoECamUnitBegin");
   if (!PoECamUnitBegin())
@@ -166,9 +168,10 @@ void setup()
 
   EEPROM.begin(STORE_DATA_SIZE);
   LoadEEPROM();
-  updateFTP_ParameterFromGrobalStrings();
 
   CameraSensorSetup();
+
+  updateFTP_ParameterFromGrobalStrings();
 
   M5_LOGI("deviceIP_String = %s", deviceIP_String.c_str());
   M5_LOGI("DisplayCount = %d", M5.getDisplayCount());
@@ -195,9 +198,16 @@ void setup()
   }
 }
 
+int loopCount = 1000;
 void loop()
 {
-  delay(189);
+  delay(100);
+
+  if(loopCount>=100){
+    M5_LOGI("Call HTTPUI();");
+    loopCount=0;
+  }
+  loopCount++;
   HTTP_UI();
 
   if (M5.getDisplayCount() > 0)
