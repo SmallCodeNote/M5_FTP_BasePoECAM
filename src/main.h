@@ -8,7 +8,13 @@
 #define FLASH_EN_PIN 25
 
 
-void CameraSensorSetup();
+void CameraSensorFullSetupFromStoreData();
+void CameraSensorSetJPEG();
+void CameraSensorSetGRAYSCALE();
+
+uint16_t CameraSensorFrameWidth(framesize_t framesize);
+uint16_t CameraSensorFrameHeight(framesize_t framesize);
+
 
 extern M5_Ethernet_FtpClient ftp;
 extern M5_Ethernet_NtpClient NtpClient;

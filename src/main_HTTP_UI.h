@@ -26,10 +26,10 @@
     client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
     client.print(inputName);                                                                     \
-    client.println("\" size=\"4\" required>");                                                              \
+    client.println("\" size=\"4\" required>");                                                   \
     client.println("</li>");                                                                     \
   }
-#define HTML_PUT_LI_WIDEINPUT(inputName)                                                             \
+#define HTML_PUT_LI_WIDEINPUT(inputName)                                                         \
   {                                                                                              \
     client.println("<li>");                                                                      \
     client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
@@ -38,14 +38,14 @@
     client.println("\" required>");                                                              \
     client.println("</li>");                                                                     \
   }
-#define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName,comment)                                                             \
+#define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName, comment)                                       \
   {                                                                                              \
     client.println("<li>");                                                                      \
     client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
     client.print(inputName);                                                                     \
-    client.println("\" size=\"4\" required>");                                                              \
-    client.printf("[%s]", comment);                                                                       \
+    client.println("\" size=\"4\" required>");                                                   \
+    client.printf("[%s]", comment);                                                              \
     client.println("</li>");                                                                     \
   }
 // used to image stream
@@ -56,11 +56,54 @@ static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART =
     "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
+
+typedef enum {
+    HTTP_UI_MODE_GET,
+    HTTP_UI_MODE_POST
+} HTTP_UI_MODE_t;
+
+struct PageHandler
+{
+  HTTP_UI_MODE_t mode;//GET:0,POST:1
+  const char *page;
+  void (*handler)(EthernetClient);
+};
+
 extern EthernetServer HttpUIServer;
 extern String SensorValueString;
 void HTTP_UI();
 void HTTP_UI_PART_ResponceHeader(EthernetClient client, String Content_Type);
+void HTTP_UI_PART_HTMLHeader(EthernetClient client);
 void HTTP_UI_PART_HTMLFooter(EthernetClient client);
+
+void HTTP_UI_JSON_sensorValueNow(EthernetClient client);
+void HTTP_UI_JSON_unitTimeNow(EthernetClient client);
+void HTTP_UI_JSON_cameraLineNow(EthernetClient client);
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient client);
+void HTTP_UI_STREAM_JPEG(EthernetClient client);
+
+void HTTP_UI_PAGE_top(EthernetClient client);
+void HTTP_UI_PAGE_view(EthernetClient client);
+void HTTP_UI_PAGE_cameraLineView(EthernetClient client);
+void HTTP_UI_PAGE_chart(EthernetClient client);
+void HTTP_UI_PAGE_notFound(EthernetClient client);
+
+void HTTP_UI_PAGE_configParam(EthernetClient client);
 void HTTP_UI_POST_configParam(EthernetClient client);
+
+void HTTP_UI_PAGE_configCamera(EthernetClient client);
+void HTTP_UI_POST_configCamera(EthernetClient client);
+
+void HTTP_UI_PAGE_configChart(EthernetClient client);
+void HTTP_UI_POST_configChart(EthernetClient client);
+
+void HTTP_UI_PAGE_configTime(EthernetClient client);
+void HTTP_UI_POST_configTime(EthernetClient client);
+
+void HTTP_UI_PAGE_unitTime(EthernetClient client);
+void HTTP_UI_POST_configTime(EthernetClient client);
+
+String urlDecode(String input);
+void TaskRestart(void *arg);
 
 #endif

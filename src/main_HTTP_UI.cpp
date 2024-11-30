@@ -49,6 +49,146 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
+void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
+{
+  CameraSensorSetJPEG();
+  M5_LOGD("");
+  if (PoECAM.Camera.get())
+  {
+    PoECAM.setLed(true);
+
+    int32_t to_sends = PoECAM.Camera.fb->len;
+    uint8_t *out_buf = PoECAM.Camera.fb->buf;
+    u_int16_t c_width = PoECAM.Camera.fb->width;
+    u_int16_t c_height = PoECAM.Camera.fb->height;
+    pixformat_t pixmode = PoECAM.Camera.fb->format;
+    M5_LOGI("Sending cameraLineNow %u, %u, %u", c_width, c_height, pixmode);
+    M5_LOGI("to_sends = %d ", to_sends);
+
+    uint8_t *map_buf = (uint8_t *)ps_malloc(3 * c_width * c_height);
+
+    fmt2rgb888(out_buf, to_sends, pixmode, map_buf);
+
+    PoECAM.Camera.free();
+
+    u_int32_t offset = c_width * c_height / 2u * 3;
+    u_int32_t lineEnd = offset + c_width * 3;
+
+    HTTP_UI_PART_ResponceHeader(client, "application/json");
+    client.print("{");
+    client.print("\"unitTime\":");
+    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
+    client.println(",");
+
+    client.print("");
+    client.print("\"CameraLineValue\":[");
+    client.printf("%u", *(map_buf + offset));
+    for (u_int32_t i = offset + 1; i < lineEnd; i += 3)
+    {
+      client.printf(",%u", *(map_buf + i));
+    }
+    client.println("]}");
+
+    free(map_buf);
+  }
+  M5_LOGD("");
+}
+
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
+{
+  M5_LOGI("Sending JPEG image");
+  CameraSensorSetJPEG();
+
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: image/jpeg");
+  client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println();
+
+  if (PoECAM.Camera.get())
+  {
+    PoECAM.setLed(true);
+    int32_t to_sends = PoECAM.Camera.fb->len;
+    int32_t now_sends = 0;
+    uint8_t *out_buf = PoECAM.Camera.fb->buf;
+    uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        goto client_exit;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
+
+    M5_LOGI("JPEG sent successfully");
+    PoECAM.Camera.free();
+    PoECAM.setLed(false);
+  }
+
+client_exit:
+  PoECAM.Camera.free();
+  PoECAM.setLed(0);
+  client.stop();
+  M5_LOGI("JPEG transmission end");
+}
+
+void HTTP_UI_STREAM_JPEG(EthernetClient client)
+{
+  M5_LOGI("Image stream start");
+  CameraSensorSetJPEG();
+
+  client.println("HTTP/1.1 200 OK");
+  client.printf("Content-Type: %s\r\n", _STREAM_CONTENT_TYPE);
+  client.println("Content-Disposition: inline; filename=capture.jpg");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println();
+  static int64_t last_frame = 0;
+  if (!last_frame)
+  {
+    last_frame = esp_timer_get_time();
+  }
+  while (true)
+  {
+    if (PoECAM.Camera.get())
+    {
+      PoECAM.setLed(true);
+      client.print(_STREAM_BOUNDARY);
+      client.printf(_STREAM_PART, PoECAM.Camera.fb);
+      int32_t to_sends = PoECAM.Camera.fb->len;
+      int32_t now_sends = 0;
+      uint8_t *out_buf = PoECAM.Camera.fb->buf;
+      uint32_t packet_len = 1 * 1024;
+      while (to_sends > 0)
+      {
+        now_sends = to_sends > packet_len ? packet_len : to_sends;
+        if (client.write(out_buf, now_sends) == 0)
+        {
+          goto client_exit;
+        }
+        out_buf += now_sends;
+        to_sends -= packet_len;
+      }
+      int64_t fr_end = esp_timer_get_time();
+      int64_t frame_time = fr_end - last_frame;
+      last_frame = fr_end;
+      frame_time /= 1000;
+      M5_LOGI("MJPG: %luKB %lums (%.1ffps)\r\n", (long unsigned int)(PoECAM.Camera.fb->len / 1024), (long unsigned int)frame_time, 1000.0 / (long unsigned int)frame_time);
+      PoECAM.Camera.free();
+      PoECAM.setLed(false);
+    }
+    delay(10);
+  }
+client_exit:
+  PoECAM.Camera.free();
+  PoECAM.setLed(0);
+  client.stop();
+  M5_LOGI("Image stream end\r\n");
+}
+
 void HTTP_UI_PAGE_top(EthernetClient client)
 {
   HTTP_UI_PART_ResponceHeader(client, "text/html");
@@ -58,6 +198,7 @@ void HTTP_UI_PAGE_top(EthernetClient client)
   client.println("<a href=\"/capture.jpg\">Stream</a><br>");
   client.println("<a href=\"/view.html\">View Page</a><br>");
   client.println("<a href=\"/chart.html\">Chart Page</a><br>");
+  client.println("<a href=\"/cameraLineView.html\">CameraLineView Page</a><br>");
   client.println("<a href=\"/unitTime.html\">Unit Time</a><br>");
 
   client.println("<br>");
@@ -114,97 +255,77 @@ void HTTP_UI_PAGE_view(EthernetClient client)
   HTTP_UI_PART_HTMLFooter(client);
 }
 
-void HTTP_UI_STREAM_JPEG(EthernetClient client)
+void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
 {
-  M5_LOGI("Image stream start");
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
 
-  client.println("HTTP/1.1 200 OK");
-  client.printf("Content-Type: %s\r\n", _STREAM_CONTENT_TYPE);
-  client.println("Content-Disposition: inline; filename=capture.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
-  static int64_t last_frame = 0;
-  if (!last_frame)
-  {
-    last_frame = esp_timer_get_time();
-  }
-  while (true)
-  {
-    if (PoECAM.Camera.get())
-    {
-      PoECAM.setLed(true);
-      client.print(_STREAM_BOUNDARY);
-      client.printf(_STREAM_PART, PoECAM.Camera.fb);
-      int32_t to_sends = PoECAM.Camera.fb->len;
-      int32_t now_sends = 0;
-      uint8_t *out_buf = PoECAM.Camera.fb->buf;
-      uint32_t packet_len = 1 * 1024;
-      while (to_sends > 0)
-      {
-        now_sends = to_sends > packet_len ? packet_len : to_sends;
-        if (client.write(out_buf, now_sends) == 0)
-        {
-          goto client_exit;
-        }
-        out_buf += now_sends;
-        to_sends -= packet_len;
-      }
-      int64_t fr_end = esp_timer_get_time();
-      int64_t frame_time = fr_end - last_frame;
-      last_frame = fr_end;
-      frame_time /= 1000;
-      M5_LOGI("MJPG: %luKB %lums (%.1ffps)\r\n", (long unsigned int)(PoECAM.Camera.fb->len / 1024), (long unsigned int)frame_time, 1000.0 / (long unsigned int)frame_time);
-      PoECAM.Camera.free();
-      PoECAM.setLed(false);
-    }
-    delay(10);
-  }
-client_exit:
-  PoECAM.Camera.free();
-  PoECAM.setLed(0);
-  client.stop();
-  M5_LOGI("Image stream end\r\n");
-}
+  client.println("<h1>Camera Line View</h1>");
 
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
-{
-  M5_LOGI("Sending JPEG image");
+  client.println("<ul id=\"unitTime\">");
+  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  client.println("</ul>");
 
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: image/jpeg");
-  client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
+  client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"50\"></canvas>");
 
-  if (PoECAM.Camera.get())
-  {
-    PoECAM.setLed(true);
-    int32_t to_sends = PoECAM.Camera.fb->len;
-    int32_t now_sends = 0;
-    uint8_t *out_buf = PoECAM.Camera.fb->buf;
-    uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+  client.println("<script src=\"/chart.js\"></script>");
+  client.println("<script>");
 
-    while (to_sends > 0)
-    {
-      now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
-      {
-        goto client_exit;
-      }
-      out_buf += now_sends;
-      to_sends -= now_sends;
-    }
+  client.println("var chart = null;");
 
-    M5_LOGI("JPEG sent successfully");
-    PoECAM.Camera.free();
-    PoECAM.setLed(false);
-  }
+  client.println("function fetchCameraLineData() {");
+  client.println("  var xhr = new XMLHttpRequest();");
+  client.println("  xhr.onreadystatechange = function() {");
+  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  client.println("      var data = JSON.parse(xhr.responseText);");
+  client.println("      updateChart(data.CameraLineValue);");
+  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  client.println("    }");
+  client.println("  };");
+  client.println("  xhr.open('GET', '/cameraLineNow.json', true);");
+  client.println("  xhr.send();");
+  client.println("}");
 
-client_exit:
-  PoECAM.Camera.free();
-  PoECAM.setLed(0);
-  client.stop();
-  M5_LOGI("JPEG transmission end");
+  client.println("function updateChart(data) {");
+  client.println("  var ctx = document.getElementById('cameraLineChart').getContext('2d');");
+
+  client.println("  if (chart) {");
+  client.println("    chart.destroy();");
+  client.println("  }");
+
+  client.println("  chart = new Chart(ctx, {");
+  client.println("    type: 'line',");
+  client.println("    data: {");
+  client.println("      labels: data.map((_, index) => index),");
+  client.println("      datasets: [{");
+  client.println("        label: 'Camera Line Data',");
+  client.println("        data: data,");
+  client.println("        borderColor: 'rgba(75, 192, 192, 1)',");
+  client.println("        borderWidth: 1,");
+  client.println("        fill: false");
+  client.println("      }]");
+  client.println("    },");
+  client.println("    options: {");
+  client.println("      animation: false,");
+  client.println("      scales: {");
+  client.println("        x: {");
+  client.println("          type: 'linear',");
+  client.println("          position: 'bottom'");
+  client.println("        }");
+  client.println("      }");
+  client.println("    }");
+  client.println("  });");
+  client.println("}");
+
+  client.printf("setInterval(fetchCameraLineData, %s);", chartUpdateInterval.c_str());
+
+  client.println("fetchCameraLineData();");
+  client.println("</script>");
+
+  client.println("<br />");
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  HTTP_UI_PART_HTMLFooter(client);
 }
 
 void HTTP_UI_PAGE_chart(EthernetClient client)
@@ -239,9 +360,10 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
   client.println("      updateChart();");
   client.println("    }");
   client.println("  };");
-  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
+  client.println("  xhr.open('GET', '/sensorValueNow.json', true);"); 
   client.println("  xhr.send();");
   client.println("}");
+
   client.println("function updateChart() {");
   client.println("  var ctx = document.getElementById('distanceChart').getContext('2d');");
 
@@ -272,6 +394,20 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
   client.printf("setInterval(fetchData, %s);", chartUpdateInterval.c_str());
   client.println("fetchData();");
   client.println("</script>");
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
+
+void HTTP_UI_PAGE_notFound(EthernetClient client)
+{
+  client.println("HTTP/1.1 404 Not Found");
+  client.println("Content-Type: text/html");
+  client.println("Connection: close");
+  client.println();
+
+  HTTP_UI_PART_HTMLHeader(client);
+
+  client.println("<h1>404 Not Found</h1>");
 
   HTTP_UI_PART_HTMLFooter(client);
 }
@@ -311,12 +447,6 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
   HTTP_UI_PART_HTMLFooter(client);
-}
-
-void TaskRestart(void *arg)
-{
-  delay(5000);
-  ESP.restart();
 }
 
 void HTTP_UI_POST_configParam(EthernetClient client)
@@ -529,7 +659,7 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
 */
 
   PutEEPROM();
-  CameraSensorSetup();
+  CameraSensorFullSetupFromStoreData();
 
   HTTP_UI_PART_ResponceHeader(client, "text/html");
   HTTP_UI_PART_HTMLHeader(client);
@@ -655,32 +785,39 @@ void HTTP_UI_PAGE_configTime(EthernetClient client)
   HTTP_UI_PART_HTMLFooter(client);
 }
 
-String urlDecode(String input)
+void HTTP_UI_PAGE_unitTime(EthernetClient client)
 {
-  String decoded = "";
-  char temp[] = "0x00";
-  unsigned int i, j;
-  for (i = 0; i < input.length(); i++)
-  {
-    if (input[i] == '%')
-    {
-      temp[2] = input[i + 1];
-      temp[3] = input[i + 2];
-      decoded += (char)strtol(temp, NULL, 16);
-      i += 2;
-    }
-    else if (input[i] == '+')
-    {
-      decoded += ' ';
-    }
-    else
-    {
-      decoded += input[i];
-    }
-  }
-  return decoded;
-}
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
 
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<br />");
+
+  client.println("<ul id=\"unitTime\">");
+  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  client.println("</ul>");
+
+  client.println("<br>");
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  client.println("<script>");
+  client.println("function fetchData() {");
+  client.println("  var xhr = new XMLHttpRequest();");
+  client.println("  xhr.onreadystatechange = function() {");
+  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  client.println("      var data = JSON.parse(xhr.responseText);");
+  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  client.println("    }");
+  client.println("  };");
+  client.println("  xhr.open('GET', '/unitTimeNow.json', true);");
+  client.println("  xhr.send();");
+  client.println("}");
+  client.println("setInterval(fetchData, 1000);");
+  client.println("fetchData();");
+  client.println("</script>");
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
 void HTTP_UI_POST_configTime(EthernetClient client)
 {
   String currentLine = "";
@@ -733,130 +870,76 @@ void HTTP_UI_POST_configTime(EthernetClient client)
   return;
 }
 
-void HTTP_UI_PAGE_unitTime(EthernetClient client)
+String urlDecode(String input)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
-
-  client.println("<ul id=\"unitTime\">");
-  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  client.println("</ul>");
-
-  client.println("<br>");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  client.println("<script>");
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/unitTimeNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
-  client.println("setInterval(fetchData, 1000);");
-  client.println("fetchData();");
-  client.println("</script>");
-
-  HTTP_UI_PART_HTMLFooter(client);
+  String decoded = "";
+  char temp[] = "0x00";
+  unsigned int i, j;
+  for (i = 0; i < input.length(); i++)
+  {
+    if (input[i] == '%')
+    {
+      temp[2] = input[i + 1];
+      temp[3] = input[i + 2];
+      decoded += (char)strtol(temp, NULL, 16);
+      i += 2;
+    }
+    else if (input[i] == '+')
+    {
+      decoded += ' ';
+    }
+    else
+    {
+      decoded += input[i];
+    }
+  }
+  return decoded;
 }
 
-void HTTP_UI_PAGE_notFound(EthernetClient client)
+void TaskRestart(void *arg)
 {
-  client.println("HTTP/1.1 404 Not Found");
-  client.println("Content-Type: text/html");
-  client.println("Connection: close");
-  client.println();
-
-  HTTP_UI_PART_HTMLHeader(client);
-
-  client.println("<h1>404 Not Found</h1>");
-
-  HTTP_UI_PART_HTMLFooter(client);
+  delay(5000);
+  ESP.restart();
 }
+
+PageHandler pageHandlers[] = {
+    {HTTP_UI_MODE_GET, "sensorValueNow.json", HTTP_UI_JSON_sensorValueNow},
+    {HTTP_UI_MODE_GET, "unitTimeNow.json", HTTP_UI_JSON_unitTimeNow},
+    {HTTP_UI_MODE_GET, "cameraLineNow.json", HTTP_UI_JSON_cameraLineNow},
+    {HTTP_UI_MODE_GET, "sensorImageNow.jpg", HTTP_UI_JPEG_sensorImageNow},
+    {HTTP_UI_MODE_GET, "view.html", HTTP_UI_PAGE_view},
+    {HTTP_UI_MODE_GET, "chart.js", HTTP_UI_JS_ChartJS},
+    {HTTP_UI_MODE_GET, "chart.html", HTTP_UI_PAGE_chart},
+    {HTTP_UI_MODE_GET, "cameraLineView.html", HTTP_UI_PAGE_cameraLineView},
+    {HTTP_UI_MODE_GET, "capture.jpg", HTTP_UI_STREAM_JPEG},
+    {HTTP_UI_MODE_GET, "configParam.html", HTTP_UI_PAGE_configParam},
+    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_PAGE_configChart},
+    {HTTP_UI_MODE_GET, "configCamera.html", HTTP_UI_PAGE_configCamera},
+    {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
+    {HTTP_UI_MODE_GET, "unitTime.html", HTTP_UI_PAGE_unitTime},
+    {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
+    {HTTP_UI_MODE_POST, "configParamSuccess.html", HTTP_UI_POST_configParam},
+    {HTTP_UI_MODE_POST, "configChartSuccess.html", HTTP_UI_POST_configChart},
+    {HTTP_UI_MODE_POST, "configCameraSuccess.html", HTTP_UI_POST_configCamera},
+    {HTTP_UI_MODE_POST, "configTimeSuccess.html", HTTP_UI_POST_configTime},
+    {HTTP_UI_MODE_GET, "", HTTP_UI_PAGE_top} // default handler
+};
 
 void sendPage(EthernetClient client, String page)
 {
   M5_LOGV("page = %s", page.c_str());
 
-  if (page == "sensorValueNow.json")
+  size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
+
+  for (size_t i = 0; i < numPages; ++i)
   {
-    HTTP_UI_JSON_sensorValueNow(client);
+    if (page == pageHandlers[i].page)
+    {
+      pageHandlers[i].handler(client);
+      return;
+    }
   }
-  else if (page == "unitTimeNow.json")
-  {
-    HTTP_UI_JSON_unitTimeNow(client);
-  }
-  else if (page == "sensorImageNow.jpg")
-  {
-    HTTP_UI_JPEG_sensorImageNow(client);
-  }
-  else if (page == "view.html")
-  {
-    HTTP_UI_PAGE_view(client);
-  }
-  else if (page == "chart.js")
-  {
-    HTTP_UI_JS_ChartJS(client);
-  }
-  else if (page == "chart.html")
-  {
-    HTTP_UI_PAGE_chart(client);
-  }
-  else if (page == "capture.jpg")
-  {
-    HTTP_UI_STREAM_JPEG(client);
-  }
-  else if (page == "configParam.html")
-  {
-    HTTP_UI_PAGE_configParam(client);
-  }
-  else if (page == "configParamSuccess.html")
-  {
-    HTTP_UI_POST_configParam(client);
-  }
-  else if (page == "configChart.html")
-  {
-    HTTP_UI_PAGE_configChart(client);
-  }
-  else if (page == "configChartSuccess.html")
-  {
-    HTTP_UI_POST_configChart(client);
-  }
-  else if (page == "configCamera.html")
-  {
-    HTTP_UI_PAGE_configCamera(client);
-  }
-  else if (page == "configCameraSuccess.html")
-  {
-    HTTP_UI_POST_configCamera(client);
-  }
-  else if (page == "configTime.html")
-  {
-    HTTP_UI_PAGE_configTime(client);
-  }
-  else if (page == "unitTime.html")
-  {
-    HTTP_UI_PAGE_unitTime(client);
-  }
-  else if (page == "configTimeSuccess.html")
-  {
-    HTTP_UI_POST_configTime(client);
-  }
-  else if (page == "top.html")
-  {
-    HTTP_UI_PAGE_top(client);
-  }
-  else
-  {
-    HTTP_UI_PAGE_notFound(client);
-  }
+  HTTP_UI_PAGE_notFound(client);
 }
 
 void HTTP_UI()
@@ -865,12 +948,12 @@ void HTTP_UI()
   if (client)
   {
     M5_LOGV("new client");
-
     boolean currentLineIsBlank = true;
     String currentLine = "";
     String page = "";
-
     bool getRequest = false;
+
+    size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
 
     while (client.connected())
     {
@@ -881,115 +964,28 @@ void HTTP_UI()
         if (c == '\n' && currentLineIsBlank)
         {
           M5_LOGI("%s", currentLine);
-
           if (getRequest)
-          {
             sendPage(client, page);
-            break;
-          }
           else
-          {
             HTTP_UI_PAGE_notFound(client);
-            break;
-          }
-
           break;
         }
         if (c == '\n')
-        {
-          currentLineIsBlank = true;
-          currentLine = "";
-        }
+          currentLineIsBlank = true, currentLine = "";
         else if (c != '\r')
-        {
-          currentLineIsBlank = false;
-          currentLine += c;
-        }
+          currentLineIsBlank = false, currentLine += c;
 
-        if (currentLine.endsWith("GET /sensorValueNow.json"))
+        for (size_t i = 0; i < numPages; i++)
         {
-          getRequest = true;
-          page = "sensorValueNow.json";
-        }
-        else if (currentLine.endsWith("GET /unitTimeNow.json"))
-        {
-          getRequest = true;
-          page = "unitTimeNow.json";
-        }
-        else if (currentLine.endsWith("GET /sensorImageNow.jpg"))
-        {
-          getRequest = true;
-          page = "sensorImageNow.jpg";
-        }
-        else if (currentLine.endsWith("GET /chart.js"))
-        {
-          getRequest = true;
-          page = "chart.js";
-        }
-        else if (currentLine.endsWith("GET /view.html"))
-        {
-          getRequest = true;
-          page = "view.html";
-        }
-        else if (currentLine.endsWith("GET /capture.jpg"))
-        {
-          getRequest = true;
-          page = "capture.jpg";
-        }
-        else if (currentLine.endsWith("GET /chart.html"))
-        {
-          getRequest = true;
-          page = "chart.html";
-        }
-        else if (currentLine.endsWith("GET /configParam.html"))
-        {
-          getRequest = true;
-          page = "configParam.html";
-        }
-        else if (currentLine.endsWith("GET /configChart.html"))
-        {
-          getRequest = true;
-          page = "configChart.html";
-        }
-        else if (currentLine.endsWith("GET /configCamera.html"))
-        {
-          getRequest = true;
-          page = "configCamera.html";
-        }
-        else if (currentLine.endsWith("GET /configTime.html"))
-        {
-          getRequest = true;
-          page = "configTime.html";
-        }
-        else if (currentLine.endsWith("GET /unitTime.html"))
-        {
-          getRequest = true;
-          page = "unitTime.html";
-        }
-        else if (currentLine.endsWith("GET /top.html") || currentLine.endsWith("GET /"))
-        {
-          getRequest = true;
-          page = "top.html";
-        }
-        else if (currentLine.startsWith("POST /configParamSuccess.html"))
-        {
-          getRequest = true;
-          page = "configParamSuccess.html";
-        }
-        else if (currentLine.startsWith("POST /configChartSuccess.html"))
-        {
-          getRequest = true;
-          page = "configChartSuccess.html";
-        }
-        else if (currentLine.startsWith("POST /configCameraSuccess.html"))
-        {
-          getRequest = true;
-          page = "configCameraSuccess.html";
-        }
-        else if (currentLine.startsWith("POST /configTimeSuccess.html"))
-        {
-          getRequest = true;
-          page = "configTimeSuccess.html";
+          String pageName = String(pageHandlers[i].page);
+          String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
+          if (currentLine.endsWith(CheckLine.c_str()))
+          {
+            page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
+            M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
+            getRequest = true;
+            break;
+          }
         }
       }
     }

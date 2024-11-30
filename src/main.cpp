@@ -68,10 +68,115 @@ bool PoECamUnitBegin()
   return UnitEnable;
 }
 
-void CameraSensorSetup()
+uint16_t CameraSensorFrameWidth(framesize_t framesize)
 {
+  switch (framesize)
+  {
+  case FRAMESIZE_96X96: // 96x96 pixels
+    return 96u;
+  case FRAMESIZE_QQVGA: // 160x120 pixels
+    return 160u;
+  case FRAMESIZE_QCIF: // 176x144 pixels
+    return 176u;
+  case FRAMESIZE_HQVGA: // 240x176 pixels
+    return 240u;
+  case FRAMESIZE_240X240: // 240x240 pixels
+    return 240u;
+  case FRAMESIZE_QVGA: // 320x240 pixels
+    return 320u;
+  case FRAMESIZE_CIF: // 400x296 pixels
+    return 400u;
+  case FRAMESIZE_HVGA: // 480x320 pixels
+    return 480u;
+  case FRAMESIZE_VGA: // 640x480 pixels
+    return 640u;
+  case FRAMESIZE_SVGA: // 800x600 pixels
+    return 800u;
+  case FRAMESIZE_XGA: // 1024x768 pixels
+    return 1024u;
+  case FRAMESIZE_HD: // 1280x720 pixels
+    return 1280u;
+  case FRAMESIZE_SXGA: // 1280x1024 pixels
+    return 1280u;
+  case FRAMESIZE_UXGA: // 1600x1200 pixels
+    return 1600u;
+  case FRAMESIZE_FHD: // 1920x1080 pixels
+    return 1920u;
+  case FRAMESIZE_P_HD: // 720x1280 pixels
+    return 720u;
+  case FRAMESIZE_P_3MP: // 864x1536 pixels
+    return 864u;
+  case FRAMESIZE_QXGA: // 2048x1536 pixels
+    return 2048u;
+  case FRAMESIZE_QHD: // 2560x1440 pixels
+    return 2560u;
+  case FRAMESIZE_WQXGA: // 2560x1600 pixels
+    return 2560u;
+  case FRAMESIZE_P_FHD: // 1080x1920 pixels
+    return 1080u;
+  case FRAMESIZE_QSXGA: // 2560x1920 pixels
+    return 2560u;
+  default: // Invalid framesize
+    return 0u;
+  }
+}
 
-  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
+uint16_t CameraSensorFrameHeight(framesize_t framesize)
+{
+  switch (framesize)
+  {
+  case FRAMESIZE_96X96: // 96x96 pixels
+    return 96u;
+  case FRAMESIZE_QQVGA: // 160x120 pixels
+    return 120u;
+  case FRAMESIZE_QCIF: // 176x144 pixels
+    return 144u;
+  case FRAMESIZE_HQVGA: // 240x176 pixels
+    return 176u;
+  case FRAMESIZE_240X240: // 240x240 pixels
+    return 240u;
+  case FRAMESIZE_QVGA: // 320x240 pixels
+    return 240u;
+  case FRAMESIZE_CIF: // 400x296 pixels
+    return 296u;
+  case FRAMESIZE_HVGA: // 480x320 pixels
+    return 320u;
+  case FRAMESIZE_VGA: // 640x480 pixels
+    return 480u;
+  case FRAMESIZE_SVGA: // 800x600 pixels
+    return 600u;
+  case FRAMESIZE_XGA: // 1024x768 pixels
+    return 768u;
+  case FRAMESIZE_HD: // 1280x720 pixels
+    return 720u;
+  case FRAMESIZE_SXGA: // 1280x1024 pixels
+    return 1024u;
+  case FRAMESIZE_UXGA: // 1600x1200 pixels
+    return 1200u;
+  case FRAMESIZE_FHD: // 1920x1080 pixels
+    return 1080u;
+  case FRAMESIZE_P_HD: // 720x1280 pixels
+    return 1280u;
+  case FRAMESIZE_P_3MP: // 864x1536 pixels
+    return 1536u;
+  case FRAMESIZE_QXGA: // 2048x1536 pixels
+    return 1536u;
+  case FRAMESIZE_QHD: // 2560x1440 pixels
+    return 1440u;
+  case FRAMESIZE_WQXGA: // 2560x1600 pixels
+    return 1600u;
+  case FRAMESIZE_P_FHD: // 1080x1920 pixels
+    return 1920u;
+  case FRAMESIZE_QSXGA: // 2560x1920 pixels
+    return 1920u;
+  default: // Invalid framesize
+    return 0u;
+  }
+}
+
+void CameraSensorFullSetupFromStoreData()
+{
+  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
   PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, storeData.framesize);
   PoECAM.Camera.sensor->set_contrast(PoECAM.Camera.sensor, storeData.contrast);
   PoECAM.Camera.sensor->set_brightness(PoECAM.Camera.sensor, storeData.brightness);
@@ -92,6 +197,23 @@ void CameraSensorSetup()
   PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, storeData.special_effect);
   PoECAM.Camera.sensor->set_wb_mode(PoECAM.Camera.sensor, storeData.wb_mode);
   PoECAM.Camera.sensor->set_ae_level(PoECAM.Camera.sensor, storeData.ae_level);
+
+  //PoECAM.Camera.config->fb_location = CAMERA_FB_IN_PSRAM;
+  
+}
+
+void CameraSensorSetJPEG()
+{
+  PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, 0);
+  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
+}
+void CameraSensorSetGRAYSCALE()
+{
+  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RGB888;
+  PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, 2);
+  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_GRAYSCALE);
+  //PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RGB888);
+  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RAW);
 
 }
 
@@ -150,7 +272,7 @@ void setup()
   EEPROM.begin(STORE_DATA_SIZE);
   LoadEEPROM();
 
-  CameraSensorSetup();
+  CameraSensorFullSetupFromStoreData();
 
   updateFTP_ParameterFromGrobalStrings();
 
@@ -184,9 +306,10 @@ void loop()
 {
   delay(100);
 
-  if(loopCount>=100){
+  if (loopCount >= 100)
+  {
     M5_LOGI("Call HTTPUI();");
-    loopCount=0;
+    loopCount = 0;
   }
   loopCount++;
   HTTP_UI();
