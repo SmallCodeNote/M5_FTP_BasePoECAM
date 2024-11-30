@@ -164,7 +164,6 @@ client_exit:
   PoECAM.setLed(0);
   client.stop();
   M5_LOGI("Image stream end\r\n");
-  
 }
 
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
@@ -530,22 +529,15 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
 */
 
   PutEEPROM();
-
-  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
-  PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, storeData.framesize);
-  PoECAM.Camera.sensor->set_vflip(PoECAM.Camera.sensor, storeData.vflip);
-  PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, storeData.hmirror);
-  PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, storeData.gain_ctrl);
-  PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, storeData.exposure_ctrl);
-  PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, storeData.denoise);
+  CameraSensorSetup();
 
   HTTP_UI_PART_ResponceHeader(client, "text/html");
   HTTP_UI_PART_HTMLHeader(client);
   client.println("<h1>" + deviceName + "</h1>");
   client.println("<br />");
-  client.println("SUCCESS PARAMETER UPDATE.");
-
+  client.println("SUCCESS PARAMETER UPDATE.<br />");
   client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  client.printf("<a href=\"http://%s/configCamera.html\">Return Config Camera Page</a><br>", deviceIP_String.c_str());
 
   HTTP_UI_PART_HTMLFooter(client);
 }

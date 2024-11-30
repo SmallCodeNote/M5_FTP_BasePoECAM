@@ -1,8 +1,6 @@
 #include <M5Unified.h>
 #include <SPI.h>
-// #include <Wire.h>
 #include <M5_Ethernet.h>
-// #include <time.h>
 #include <EEPROM.h>
 #include "M5PoECAM.h"
 #include "M5_Ethernet_FtpClient.h"
@@ -66,17 +64,6 @@ bool PoECamUnitBegin()
     UnitEnable = false;
     return false;
   }
-  /*
-    PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
-    PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, FRAMESIZE_QVGA);
-    PoECAM.Camera.sensor->set_vflip(PoECAM.Camera.sensor, 1);
-    PoECAM.Camera.sensor->set_hmirror(PoECAM.Camera.sensor, 0);
-    PoECAM.Camera.sensor->set_gain_ctrl(PoECAM.Camera.sensor, 0);
-
-    PoECAM.Camera.sensor->set_exposure_ctrl(PoECAM.Camera.sensor, 0);
-    PoECAM.Camera.sensor->set_denoise(PoECAM.Camera.sensor, 1);
-  */
-
   M5_LOGI("Camera Init Success");
   return UnitEnable;
 }
@@ -122,12 +109,6 @@ bool EthernetBegin()
   }
   SPI.begin(SCK, MISO, MOSI, -1);
   Ethernet.init(CS);
-
-  M5_LOGI("ESP_MAC_WIFI_STA  %s", getInterfaceMacAddress(ESP_MAC_WIFI_STA).c_str());
-  M5_LOGI("ESP_MAC_WIFI_SOFTAP  %s", getInterfaceMacAddress(ESP_MAC_WIFI_SOFTAP).c_str());
-  M5_LOGI("ESP_MAC_BT  %s", getInterfaceMacAddress(ESP_MAC_BT).c_str());
-  M5_LOGI("ESP_MAC_ETH  %s", getInterfaceMacAddress(ESP_MAC_ETH).c_str());
-
   esp_read_mac(mac, ESP_MAC_ETH);
   Ethernet.begin(mac, storeData.deviceIP);
 
@@ -188,7 +169,7 @@ void setup()
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 0);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 0, NULL, 1);
-  xTaskCreatePinnedToCore(ShotLoop, "ShotLoop", 4096, NULL, 1, NULL, 1);
+  xTaskCreatePinnedToCore(SensorShotLoop, "SensorShotLoop", 4096, NULL, 1, NULL, 1);
 
   if (M5.getDisplayCount() > 0)
   {

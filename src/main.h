@@ -5,11 +5,12 @@
 #ifndef MAIN_BASE_FUNCTION_H
 #define MAIN_BASE_FUNCTION_H
 
-
 #define FLASH_EN_PIN 25
+
+
+void CameraSensorSetup();
 
 extern M5_Ethernet_FtpClient ftp;
 extern M5_Ethernet_NtpClient NtpClient;
-
 
 #endif
