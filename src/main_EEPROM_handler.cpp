@@ -7,7 +7,10 @@
 
 /// @brief UnitProfile
 DATA_SET storeData;
-String ftpSaveInterval = "0";
+String ftpImageSaveInterval = "0";
+String ftpEdgeSaveInterval = "0";
+String ftpProfileSaveInterval = "0";
+
 String chartShowPointCount = "60";
 String chartUpdateInterval = "1000";
 
@@ -66,7 +69,11 @@ void InitEEPROM()
     ntpSrvIP_String = "192.168.25.74";
     ftp_user = "ftpusr";
     ftp_pass = "ftpword";
-    ftpSaveInterval = "0";
+
+    ftpImageSaveInterval = "0";
+    ftpEdgeSaveInterval = "0";
+    ftpProfileSaveInterval = "0";
+
     chartShowPointCount = "60";
     chartUpdateInterval = "1000";
 
@@ -136,9 +143,13 @@ void PutEEPROM()
 {
     M5_LOGI("PutEEPROM: romCheckCode = %x", (storeData.romCheckCode));
     M5_LOGI("PutEEPROM: deviceName = %s, %s", deviceName.c_str(), (storeData.deviceName));
-    M5_LOGI("PutEEPROM: ftpSaveInterval = %s, %u", ftpSaveInterval.c_str(), (storeData.ftpSaveInterval));
+
+    M5_LOGI("PutEEPROM: ftpImageSaveInterval = %s, %u", ftpImageSaveInterval.c_str(), (storeData.ftpImageSaveInterval));
+    M5_LOGI("PutEEPROM: ftpEdgeSaveInterval = %s, %u", ftpEdgeSaveInterval.c_str(), (storeData.ftpEdgeSaveInterval));
+    M5_LOGI("PutEEPROM: ftpProfileSaveInterval = %s, %u", ftpProfileSaveInterval.c_str(), (storeData.ftpProfileSaveInterval));
     M5_LOGI("PutEEPROM: chartUpdateInterval = %s, %u", chartUpdateInterval.c_str(), (storeData.chartUpdateInterval));
     M5_LOGI("PutEEPROM: chartShowPointCount = %s, %u", chartShowPointCount.c_str(), (storeData.chartShowPointCount));
+
     M5_LOGI("PutEEPROM: timeZoneOffset = %s, %d", timeZoneOffset.c_str(), (storeData.timeZoneOffset));
     M5_LOGI("PutEEPROM: flashIntensityMode = %s, %u", flashIntensityMode.c_str(), (storeData.flashIntensityMode));
     M5_LOGI("PutEEPROM: flashLength = %s, %u", flashLength.c_str(), (storeData.flashLength));
@@ -183,9 +194,14 @@ void SetStringsFromStoreData()
     ntpSrvIP_String = storeData.ntpSrvIP.toString();
     ftp_user = storeData.ftp_user;
     ftp_pass = storeData.ftp_pass;
-    ftpSaveInterval = String(storeData.ftpSaveInterval);
+
+    ftpImageSaveInterval = String(storeData.ftpImageSaveInterval);
+    ftpEdgeSaveInterval = String(storeData.ftpEdgeSaveInterval);
+    ftpProfileSaveInterval = String(storeData.ftpProfileSaveInterval);
+
     chartUpdateInterval = String(storeData.chartUpdateInterval);
     chartShowPointCount = String(storeData.chartShowPointCount);
+
     timeZoneOffset = String(storeData.timeZoneOffset);
 
     flashIntensityMode = String(storeData.flashIntensityMode);
@@ -240,9 +256,14 @@ void SetStoreDataFromStrings()
     storeData.ftpSrvIP.fromString(ftpSrvIP_String);
     strcpy(storeData.ftp_user, ftp_user.c_str());
     strcpy(storeData.ftp_pass, ftp_pass.c_str());
-    storeData.ftpSaveInterval = (u_int16_t)(ftpSaveInterval.toInt());
+
+    storeData.ftpImageSaveInterval = (u_int16_t)(ftpImageSaveInterval.toInt());
+    storeData.ftpEdgeSaveInterval = (u_int16_t)(ftpEdgeSaveInterval.toInt());
+    storeData.ftpProfileSaveInterval = (u_int16_t)(ftpProfileSaveInterval.toInt()); 
+
     storeData.chartUpdateInterval = (u_int16_t)(chartUpdateInterval.toInt());
     storeData.chartShowPointCount = (u_int16_t)(chartShowPointCount.toInt());
+
     storeData.timeZoneOffset = (int8_t)(timeZoneOffset.toInt());
 
     storeData.flashIntensityMode = (int8_t)(flashIntensityMode.toInt());

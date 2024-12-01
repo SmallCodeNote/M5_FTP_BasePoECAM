@@ -102,7 +102,7 @@ void SensorShotLoop(void *arg)
 
   while (true)
   {
-    if ((Ethernet.linkStatus() == LinkON) && storeData.ftpSaveInterval >= 1)
+    if ((Ethernet.linkStatus() == LinkON) && storeData.ftpImageSaveInterval >= 1)
     {
       if (!ftp.isConnected())
         ftp.OpenConnection();
@@ -118,7 +118,7 @@ void SensorShotLoop(void *arg)
       lastCheckEpoc = currentEpoch;
       unsigned long shotStartOffset = SensorShotStartOffset();
 
-      if (currentEpoch >= lastWriteEpoc + storeData.ftpSaveInterval)
+      if (currentEpoch >= lastWriteEpoc + storeData.ftpImageSaveInterval)
       {
         if ((shotStartOffset == 0 || SensorShotTaskRunTrigger(currentEpoch)))
         {
@@ -154,7 +154,7 @@ void SensorShotTask(void *param)
 
   String filePath = directoryPath + "/" + YYYY + MM + DD;
 
-  if (storeData.ftpSaveInterval > 60)
+  if (storeData.ftpImageSaveInterval > 60)
   {
     directoryPath = "/" + deviceName + "/" + YYYY;
     filePath = directoryPath + "/" + YYYY + MM + DD + "_" + HH + mm;
@@ -186,7 +186,7 @@ unsigned long SensorShotStartOffset()
   const int intervals[] = {3600, 600, 300, 10, 5};
   for (int i = 0; i < sizeof(intervals) / sizeof(intervals[0]); i++)
   {
-    if (storeData.ftpSaveInterval % intervals[i] == 0)
+    if (storeData.ftpImageSaveInterval % intervals[i] == 0)
     {
       return 1;
     }
@@ -203,15 +203,15 @@ bool SensorShotTaskRunTrigger(unsigned long currentEpoch)
   char sc0 = ss[0];
   char sc1 = ss[1];
 
-  if (!(storeData.ftpSaveInterval % 3600) && mc0 == '0' && mc1 == '0' && sc0 == '0' && sc1 == '0')
+  if (!(storeData.ftpImageSaveInterval % 3600) && mc0 == '0' && mc1 == '0' && sc0 == '0' && sc1 == '0')
     return true;
-  else if (!(storeData.ftpSaveInterval % 600) && mc1 == '0' && sc0 == '0' && sc1 == '0')
+  else if (!(storeData.ftpImageSaveInterval % 600) && mc1 == '0' && sc0 == '0' && sc1 == '0')
     return true;
-  else if (!(storeData.ftpSaveInterval % 300) && (mc1 == '0' || mc1 == '5') && sc0 == '0' && sc1 == '0')
+  else if (!(storeData.ftpImageSaveInterval % 300) && (mc1 == '0' || mc1 == '5') && sc0 == '0' && sc1 == '0')
     return true;
-  else if (!(storeData.ftpSaveInterval % 10) && sc1 == '0')
+  else if (!(storeData.ftpImageSaveInterval % 10) && sc1 == '0')
     return true;
-  else if (!(storeData.ftpSaveInterval % 5) && (sc1 == '0' || sc1 == '5'))
+  else if (!(storeData.ftpImageSaveInterval % 5) && (sc1 == '0' || sc1 == '5'))
     return true;
 
   return false;

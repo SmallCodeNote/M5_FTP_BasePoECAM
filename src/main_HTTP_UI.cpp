@@ -162,7 +162,7 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JP
 
   int32_t xStep = xStartPix < xEndPix ? 1 : -1;
 
-  int32_t startOffset = (fb_width * fb_height / 2 ) * 3;
+  int32_t startOffset = (fb_width * fb_height / 2) * 3;
   uint8_t *bitmap_pix = bitmap_buf + startOffset;
   int16_t br = 0;
   int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
@@ -177,7 +177,7 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JP
     br += *(bitmap_pix);
     br += *(bitmap_pix + 1);
     br += *(bitmap_pix + 2);
-    M5_LOGI("%d : %d / %d",x, br, th);
+    M5_LOGI("%d : %d / %d", x, br, th);
     if ((th - br) * EdgeMode < 0)
     {
       return (uint16_t)x;
@@ -537,7 +537,7 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
 
   uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
   uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
-  uint32_t x1 = (uint32_t)((iWidth * (100-storeData.pixLineRange)) / 200);
+  uint32_t x1 = (uint32_t)((iWidth * (100 - storeData.pixLineRange)) / 200);
   uint32_t xw = (uint32_t)((iWidth * storeData.pixLineRange) / 100);
   uint32_t y1 = (uint32_t)((iHeight) / 2) - 1;
 
@@ -673,9 +673,14 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   HTML_PUT_LI_WIDEINPUT(ftpSrvIP_String);
   HTML_PUT_LI_WIDEINPUT(ftp_user);
   HTML_PUT_LI_WIDEINPUT(ftp_pass);
-  HTML_PUT_LI_INPUT(ftpSaveInterval);
+
+  HTML_PUT_LI_INPUT(ftpImageSaveInterval);
+  HTML_PUT_LI_INPUT(ftpEdgeSaveInterval);
+  HTML_PUT_LI_INPUT(ftpProfileSaveInterval);
+
   HTML_PUT_LI_INPUT(chartShowPointCount);
   HTML_PUT_LI_INPUT(chartUpdateInterval);
+
   HTML_PUT_LI_INPUT(timeZoneOffset);
   HTML_PUT_LI_INPUT(flashIntensityMode);
   HTML_PUT_LI_INPUT(flashLength);
@@ -712,9 +717,14 @@ void HTTP_UI_POST_configParam(EthernetClient client)
   HTTP_GET_PARAM_FROM_POST(ftpSrvIP_String);
   HTTP_GET_PARAM_FROM_POST(ftp_user);
   HTTP_GET_PARAM_FROM_POST(ftp_pass);
-  HTTP_GET_PARAM_FROM_POST(ftpSaveInterval);
+
+  HTTP_GET_PARAM_FROM_POST(ftpImageSaveInterval);
+  HTTP_GET_PARAM_FROM_POST(ftpEdgeSaveInterval);
+  HTTP_GET_PARAM_FROM_POST(ftpProfileSaveInterval);
+
   HTTP_GET_PARAM_FROM_POST(chartShowPointCount);
   HTTP_GET_PARAM_FROM_POST(chartUpdateInterval);
+
   HTTP_GET_PARAM_FROM_POST(timeZoneOffset);
   HTTP_GET_PARAM_FROM_POST(flashIntensityMode);
   HTTP_GET_PARAM_FROM_POST(flashLength);
