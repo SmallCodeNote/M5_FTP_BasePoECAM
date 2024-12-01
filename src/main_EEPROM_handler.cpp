@@ -16,6 +16,9 @@ String timeZoneOffset = "9";
 String flashIntensityMode = "6";
 String flashLength = "60";
 
+String pixLineStep = "0";   //[px  0 - ]
+String pixLineRange = "50"; //[%]
+
 String pixformat = "4"; // 0:RGB565, 1:YUV422, 2:YUV420, 3:GRAYSCALE, 4:JPEG, 5:RGB888, 6:RAW, 7:RGB444, 8:RGB555
 String framesize = "5"; // 0:96X96(96x96), 1:QQVGA(160x120), 2:QCIF(176x144), 3:HQVGA(240x176), 4:240X240(240x240), 5:QVGA(320x240), 6:CIF(400x296), 7:HVGA(480x320), 8:VGA(640x480), 9:SVGA(800x600), 10:XGA(1024x768), 11:HD(1280x720), 12:SXGA(1280x1024), 13:UXGA(1600x1200), 14:FHD(1920x1080), 15:P_HD(720x1280), 16:P_3MP(864x1536), 17:QXGA(2048x1536), 18:QHD(2560x1440), 19:WQXGA(2560x1600), 20:P_FHD(1080x1920), 21:QSXGA(2560x1920)
 
@@ -66,6 +69,9 @@ void InitEEPROM()
 
     flashIntensityMode = "6";
     flashLength = "60";
+
+    pixLineStep = "0";   //[px  0 - ]
+    pixLineRange = "50"; //[%]
 
     pixformat = "4"; // 4:JPEG
     framesize = "5"; // 5:QVGA(320x240)
@@ -219,16 +225,17 @@ void SetStoreDataFromStrings()
     storeData.chartUpdateInterval = (u_int16_t)(chartUpdateInterval.toInt());
     storeData.chartShowPointCount = (u_int16_t)(chartShowPointCount.toInt());
     storeData.timeZoneOffset = (int8_t)(timeZoneOffset.toInt());
+
     storeData.flashIntensityMode = (int8_t)(flashIntensityMode.toInt());
     storeData.flashLength = (int8_t)(flashLength.toInt());
 
-    storeData.pixformat = static_cast<pixformat_t>(pixformat.toInt());
-    storeData.framesize = static_cast<framesize_t>(framesize.toInt());
-    storeData.contrast = contrast.toInt();
+    storeData.pixLineStep = (int8_t)(pixLineStep.toInt());
+    storeData.pixLineRange = (int8_t)(pixLineRange.toInt());
 
     storeData.pixformat = static_cast<pixformat_t>(pixformat.toInt());
     storeData.framesize = static_cast<framesize_t>(framesize.toInt());
     storeData.contrast = contrast.toInt();
+
     storeData.brightness = brightness.toInt();
     storeData.saturation = saturation.toInt();
     storeData.sharpness = sharpness.toInt();

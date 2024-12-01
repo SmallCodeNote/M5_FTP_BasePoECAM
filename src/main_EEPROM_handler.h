@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 256                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x53
+#define EEPROM_CHECK_CODE 0x54
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -24,8 +24,11 @@ struct DATA_SET
     u_int16_t chartShowPointCount;
     int8_t timeZoneOffset;
     u_int8_t flashIntensityMode;
-    u_int16_t flashLength;//[ms]
- 
+    u_int16_t flashLength; //[ms]
+
+    uint8_t pixLineStep;
+    uint8_t pixLineRange;
+
     // Sensor values
     pixformat_t pixformat;
     framesize_t framesize;
@@ -85,8 +88,8 @@ extern String timeZoneOffset;
 extern String flashIntensityMode;
 extern String flashLength;
 
-extern String flashIntensityMode;
-extern String flashLength;
+extern String pixLineStep;
+extern String pixLineRange;
 
 extern String pixformat;
 extern String framesize;

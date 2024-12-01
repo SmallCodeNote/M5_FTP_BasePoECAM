@@ -176,7 +176,8 @@ uint16_t CameraSensorFrameHeight(framesize_t framesize)
 
 void CameraSensorFullSetupFromStoreData()
 {
-  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, storeData.pixformat);
+  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
+
   PoECAM.Camera.sensor->set_framesize(PoECAM.Camera.sensor, storeData.framesize);
   PoECAM.Camera.sensor->set_contrast(PoECAM.Camera.sensor, storeData.contrast);
   PoECAM.Camera.sensor->set_brightness(PoECAM.Camera.sensor, storeData.brightness);
@@ -197,24 +198,6 @@ void CameraSensorFullSetupFromStoreData()
   PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, storeData.special_effect);
   PoECAM.Camera.sensor->set_wb_mode(PoECAM.Camera.sensor, storeData.wb_mode);
   PoECAM.Camera.sensor->set_ae_level(PoECAM.Camera.sensor, storeData.ae_level);
-
-  //PoECAM.Camera.config->fb_location = CAMERA_FB_IN_PSRAM;
-  
-}
-
-void CameraSensorSetJPEG()
-{
-  PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, 0);
-  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_JPEG);
-}
-void CameraSensorSetGRAYSCALE()
-{
-  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RGB888;
-  PoECAM.Camera.sensor->set_special_effect(PoECAM.Camera.sensor, 2);
-  // PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_GRAYSCALE);
-  //PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RGB888);
-  PoECAM.Camera.sensor->set_pixformat(PoECAM.Camera.sensor, PIXFORMAT_RAW);
-
 }
 
 bool EthernetBegin()

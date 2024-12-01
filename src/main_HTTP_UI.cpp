@@ -51,53 +51,83 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
 
 void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 {
-  CameraSensorSetJPEG();
   M5_LOGD("");
   if (PoECAM.Camera.get())
   {
     PoECAM.setLed(true);
 
-    int32_t to_sends = PoECAM.Camera.fb->len;
-    uint8_t *out_buf = PoECAM.Camera.fb->buf;
-    u_int16_t c_width = PoECAM.Camera.fb->width;
-    u_int16_t c_height = PoECAM.Camera.fb->height;
+    int32_t frame_len = PoECAM.Camera.fb->len;
+    uint8_t *frame_buf = PoECAM.Camera.fb->buf;
     pixformat_t pixmode = PoECAM.Camera.fb->format;
-    M5_LOGI("Sending cameraLineNow %u, %u, %u", c_width, c_height, pixmode);
-    M5_LOGI("to_sends = %d ", to_sends);
+    u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
+    u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
 
-    uint8_t *map_buf = (uint8_t *)ps_malloc(3 * c_width * c_height);
+    // M5_LOGD("w: %u ,h: %u ,m:%u", fb_width, fb_height, pixmode);
 
-    fmt2rgb888(out_buf, to_sends, pixmode, map_buf);
+    uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * fb_width * fb_height);
+    fmt2rgb888(frame_buf, frame_len, pixmode, bitmap_buf);
 
     PoECAM.Camera.free();
 
-    u_int32_t offset = c_width * c_height / 2u * 3;
-    u_int32_t lineEnd = offset + c_width * 3;
+    uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
+    pixLineStep = pixLineStep > fb_width ? fb_width : pixLineStep;
+    uint32_t pixLineRange = (u_int32_t)(storeData.pixLineRange);
+    pixLineRange = pixLineRange > 100u ? 100u : pixLineRange;
+
+    // M5_LOGD("Step: %u ,Range: %u", pixLineStep, pixLineRange);
+
+    uint32_t RangePix = fb_width * pixLineRange / 100;
+    uint32_t xStartPix = ((fb_width * (100u - pixLineRange)) / 200u);
+    uint32_t xEndPix = xStartPix + ((fb_width * pixLineRange) / 100u);
+
+    // M5_LOGD("xStartPix= %u xEndPix= %u, RangePix= %u", xStartPix, xEndPix, RangePix);
+    // M5_LOGD("%u - %u", xStartPix, xEndPix);
+
+    u_int32_t startOffset = (fb_width * fb_height / 2u + xStartPix) * 3u;
+    uint8_t *bitmap_pix = bitmap_buf + startOffset;
+    uint8_t *bitmap_pix_lineEnd = bitmap_buf + startOffset + (xEndPix - xStartPix) * 3u;
+
+    bitmap_pix_lineEnd = bitmap_pix_lineEnd == bitmap_pix ? bitmap_pix_lineEnd + 3u : bitmap_pix_lineEnd;
 
     HTTP_UI_PART_ResponceHeader(client, "application/json");
     client.print("{");
     client.print("\"unitTime\":");
     client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
     client.println(",");
-
-    client.print("");
     client.print("\"CameraLineValue\":[");
-    client.printf("%u", *(map_buf + offset));
-    for (u_int32_t i = offset + 1; i < lineEnd; i += 3)
-    {
-      client.printf(",%u", *(map_buf + i));
-    }
-    client.println("]}");
 
-    free(map_buf);
+    u_int16_t br = 0;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    client.printf("%u", br);
+
+    while (bitmap_pix_lineEnd > bitmap_pix)
+    {
+      br = 0;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      client.printf(",%u", br);
+
+      bitmap_pix += pixLineStep * 3;
+    }
+
+    client.println("]}");
+    free(bitmap_buf);
   }
-  M5_LOGD("");
+  // M5_LOGD("");
 }
 
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
   M5_LOGI("Sending JPEG image");
-  CameraSensorSetJPEG();
 
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: image/jpeg");
@@ -133,13 +163,12 @@ client_exit:
   PoECAM.Camera.free();
   PoECAM.setLed(0);
   client.stop();
-  M5_LOGI("JPEG transmission end");
+  // M5_LOGI("JPEG transmission end");
 }
 
 void HTTP_UI_STREAM_JPEG(EthernetClient client)
 {
   M5_LOGI("Image stream start");
-  CameraSensorSetJPEG();
 
   client.println("HTTP/1.1 200 OK");
   client.printf("Content-Type: %s\r\n", _STREAM_CONTENT_TYPE);
@@ -210,6 +239,15 @@ void HTTP_UI_PAGE_top(EthernetClient client)
   client.println("<a href=\"/configChart.html\">Config Chart Page</a><br>");
   client.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
 
+  client.println("<br>");
+  client.println("<hr>");
+  client.println("<br>");
+
+  client.println("<a href=\"/sensorValueNow.json\">sensorValueNow.json</a><br>");
+  client.println("<a href=\"/unitTimeNow.json\">unitTimeNow.json</a><br>");
+  client.println("<a href=\"/cameraLineNow.json\">cameraLineNow.json</a><br>");
+  client.println("<a href=\"/sensorImageNow.jpg\">sensorImageNow.jpg</a><br>");
+
   HTTP_UI_PART_HTMLFooter(client);
 }
 
@@ -266,7 +304,8 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
   client.println("</ul>");
 
-  client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"50\"></canvas>");
+  client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
+  client.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
 
   client.println("<script src=\"/chart.js\"></script>");
   client.println("<script>");
@@ -311,15 +350,43 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("        x: {");
   client.println("          type: 'linear',");
   client.println("          position: 'bottom'");
+  client.println("        },");
+  client.println("        y: {");
+  client.println("          type: 'linear',");
+  client.println("          position: 'right'");
+//  client.println("          display: false"); 
+  client.println("        }");
+  client.println("      },");
+  client.println("      plugins: {");
+  client.println("        legend: {");
+  client.println("          display: false"); 
   client.println("        }");
   client.println("      }");
   client.println("    }");
   client.println("  });");
   client.println("}");
 
-  client.printf("setInterval(fetchCameraLineData, %s);", chartUpdateInterval.c_str());
+  client.println("function refreshImage() {");
+  client.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
+  client.println("  var img = new Image();");
+  client.println("  img.onload = function() {");
+  client.println("    var canvas = document.getElementById('cameraImage');");
+  client.println("    canvas.height = img.height * (canvas.width / img.width);"); 
+  client.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
+  client.println("    ctx.strokeStyle = 'red';");
+  client.println("    ctx.lineWidth = 1;");
+  client.println("    ctx.strokeRect(80 * (canvas.width / img.width), 119 * (canvas.height / img.height), 160 * (canvas.width / img.width), 2 * (canvas.height / img.height));");  // 赤線の四角形の枠
+  client.println("  };");
+  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();");  // add timestamp
+  client.println("}");
 
-  client.println("fetchCameraLineData();");
+  client.println("function update() {");
+  client.println("  fetchCameraLineData();");
+  client.println("  refreshImage();");
+  client.println("}");
+
+  client.printf("setInterval(update, %u);", storeData.chartUpdateInterval > 3000 ? storeData.chartUpdateInterval - 3000 : 1);
+  client.println("update();");
   client.println("</script>");
 
   client.println("<br />");
@@ -347,7 +414,7 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
 
   client.println("<script src=\"/chart.js\"></script>");
   client.println("<script>");
-  client.printf("var distanceData = Array(%s).fill(0);\n", chartShowPointCount.c_str());
+  client.printf("var distanceData = Array(%u).fill(0);\n", storeData.chartShowPointCount);
   client.println("var myChart = null;");
   client.println("function fetchData() {");
   client.println("  var xhr = new XMLHttpRequest();");
@@ -356,11 +423,11 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
   client.println("      var data = JSON.parse(xhr.responseText);");
   client.println("      document.getElementById('distance').innerText = data.distance;");
   client.println("      distanceData.push(data.distance);");
-  client.printf("      if (distanceData.length > %s) { distanceData.shift(); }", chartShowPointCount.c_str());
+  client.printf("      if (distanceData.length > %u) { distanceData.shift(); }", storeData.chartShowPointCount);
   client.println("      updateChart();");
   client.println("    }");
   client.println("  };");
-  client.println("  xhr.open('GET', '/sensorValueNow.json', true);"); 
+  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
   client.println("  xhr.send();");
   client.println("}");
 
@@ -391,7 +458,7 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
   client.println("    }");
   client.println("  });");
   client.println("}");
-  client.printf("setInterval(fetchData, %s);", chartUpdateInterval.c_str());
+  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval > 3000 ? storeData.chartUpdateInterval - 3000 : 1);
   client.println("fetchData();");
   client.println("</script>");
 
@@ -506,6 +573,8 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
   String currentLine = "";
   HTML_PUT_LI_INPUT(flashIntensityMode);
   HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength, "ms");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineStep, "px [0-]");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineRange, "%");
 
   String optionString = " selected";
   int pixformat_i = pixformat.toInt();
@@ -620,6 +689,9 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
 
   HTTP_GET_PARAM_FROM_POST(flashIntensityMode);
   HTTP_GET_PARAM_FROM_POST(flashLength);
+
+  HTTP_GET_PARAM_FROM_POST(pixLineStep);
+  HTTP_GET_PARAM_FROM_POST(pixLineRange);
 
   HTTP_GET_PARAM_FROM_POST(pixformat);
   HTTP_GET_PARAM_FROM_POST(framesize);
