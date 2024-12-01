@@ -56,18 +56,20 @@ static const char *_STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
 static const char *_STREAM_PART =
     "Content-Type: image/jpeg\r\nContent-Length: %u\r\n\r\n";
 
-
-typedef enum {
-    HTTP_UI_MODE_GET,
-    HTTP_UI_MODE_POST
+typedef enum
+{
+  HTTP_UI_MODE_GET,
+  HTTP_UI_MODE_POST
 } HTTP_UI_MODE_t;
 
 struct PageHandler
 {
-  HTTP_UI_MODE_t mode;//GET:0,POST:1
+  HTTP_UI_MODE_t mode; // GET:0,POST:1
   const char *page;
   void (*handler)(EthernetClient);
 };
+
+
 
 extern EthernetServer HttpUIServer;
 extern String SensorValueString;
@@ -80,6 +82,7 @@ void HTTP_UI_JSON_sensorValueNow(EthernetClient client);
 void HTTP_UI_JSON_unitTimeNow(EthernetClient client);
 void HTTP_UI_JSON_cameraLineNow(EthernetClient client);
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client);
+void HTTP_UI_JPEG_flashTestImage(EthernetClient client);
 void HTTP_UI_STREAM_JPEG(EthernetClient client);
 
 void HTTP_UI_PAGE_top(EthernetClient client);
@@ -105,5 +108,8 @@ void HTTP_UI_POST_configTime(EthernetClient client);
 
 String urlDecode(String input);
 void TaskRestart(void *arg);
+
+
+void HTTP_UI_JPEG_STORE_Task(void *arg);
 
 #endif

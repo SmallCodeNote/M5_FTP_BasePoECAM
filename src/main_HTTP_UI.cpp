@@ -10,6 +10,15 @@
 EthernetServer HttpUIServer(80);
 String SensorValueString = "";
 
+struct HTTP_UI_JPEG_STORE_TaskArgs
+{
+  uint8_t **HTTP_UI_JPEG_buf;
+  int32_t *HTTP_UI_JPEG_len;
+  u_int32_t fb_width;
+  u_int32_t fb_height;
+  pixformat_t pixmode;
+};
+
 void HTTP_UI_PART_ResponceHeader(EthernetClient client, String Content_Type)
 {
   client.println("HTTP/1.1 200 OK");
@@ -49,6 +58,7 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
+/*
 void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 {
   M5_LOGD("");
@@ -124,10 +134,185 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
   }
   // M5_LOGD("");
 }
+*/
 
+uint8_t *HTTP_UI_JPEG_cameraLineNow_JPEG_buf;
+int32_t HTTP_UI_JPEG_cameraLineNow_JPEG_len;
+
+void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
+{
+  M5_LOGD("");
+
+  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_cameraLineNow_JPEG_buf, &HTTP_UI_JPEG_cameraLineNow_JPEG_len};
+  unit_flash_set_brightness(storeData.flashIntensityMode);
+  digitalWrite(FLASH_EN_PIN, HIGH);
+
+  delay(30);
+  xTaskCreatePinnedToCore(HTTP_UI_JPEG_STORE_Task, "HTTP_UI_JPEG_STORE_Task", 4096, &taskArgs, 0, NULL, 0);
+  delay(storeData.flashLength);
+  digitalWrite(FLASH_EN_PIN, LOW);
+
+  if (HTTP_UI_JPEG_cameraLineNow_JPEG_len > 0)
+  {
+    PoECAM.setLed(true);
+    /*
+        int32_t frame_len = PoECAM.Camera.fb->len;
+        uint8_t *frame_buf = PoECAM.Camera.fb->buf;
+        pixformat_t pixmode = PoECAM.Camera.fb->format;
+        u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
+        u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
+    */
+
+    int32_t frame_len = *(taskArgs.HTTP_UI_JPEG_len);
+    uint8_t *frame_buf = *(taskArgs.HTTP_UI_JPEG_buf);
+    pixformat_t pixmode = taskArgs.pixmode;
+    u_int32_t fb_width = (u_int32_t)(taskArgs.fb_width);
+    u_int32_t fb_height = (u_int32_t)(taskArgs.fb_height);
+
+    // M5_LOGD("w: %u ,h: %u ,m:%u", fb_width, fb_height, pixmode);
+
+    uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * taskArgs.fb_width * taskArgs.fb_height);
+    fmt2rgb888(frame_buf, frame_len, pixmode, bitmap_buf);
+
+    // PoECAM.Camera.free();
+
+    uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
+    pixLineStep = pixLineStep > fb_width ? fb_width : pixLineStep;
+    uint32_t pixLineRange = (u_int32_t)(storeData.pixLineRange);
+    pixLineRange = pixLineRange > 100u ? 100u : pixLineRange;
+
+    // M5_LOGD("Step: %u ,Range: %u", pixLineStep, pixLineRange);
+
+    uint32_t RangePix = fb_width * pixLineRange / 100;
+    uint32_t xStartPix = ((fb_width * (100u - pixLineRange)) / 200u);
+    uint32_t xEndPix = xStartPix + ((fb_width * pixLineRange) / 100u);
+
+    // M5_LOGD("xStartPix= %u xEndPix= %u, RangePix= %u", xStartPix, xEndPix, RangePix);
+    // M5_LOGD("%u - %u", xStartPix, xEndPix);
+
+    u_int32_t startOffset = (fb_width * fb_height / 2u + xStartPix) * 3u;
+    uint8_t *bitmap_pix = bitmap_buf + startOffset;
+    uint8_t *bitmap_pix_lineEnd = bitmap_buf + startOffset + (xEndPix - xStartPix) * 3u;
+
+    bitmap_pix_lineEnd = bitmap_pix_lineEnd == bitmap_pix ? bitmap_pix_lineEnd + 3u : bitmap_pix_lineEnd;
+
+    HTTP_UI_PART_ResponceHeader(client, "application/json");
+    client.print("{");
+    client.print("\"unitTime\":");
+    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
+    client.println(",");
+    client.print("\"CameraLineValue\":[");
+
+    u_int16_t br = 0;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    br += *(bitmap_pix);
+    bitmap_pix++;
+    client.printf("%u", br);
+
+    while (bitmap_pix_lineEnd > bitmap_pix)
+    {
+      br = 0;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      br += *(bitmap_pix);
+      bitmap_pix++;
+      client.printf(",%u", br);
+
+      bitmap_pix += pixLineStep * 3;
+    }
+
+    client.println("]}");
+    free(bitmap_buf);
+  }
+  // M5_LOGD("");
+}
+
+void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
+{
+  M5_LOGI("");
+  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_cameraLineNow_JPEG_buf, &HTTP_UI_JPEG_cameraLineNow_JPEG_len};
+  if (*(taskArgs.HTTP_UI_JPEG_len) > 0)
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    int32_t to_sends = *(taskArgs.HTTP_UI_JPEG_len);
+    uint8_t *out_buf = *(taskArgs.HTTP_UI_JPEG_buf);
+
+    int32_t now_sends = 0;
+    uint32_t packet_len = 1 * 1024;
+
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        break;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
+    M5_LOGI("");
+  }
+  client.stop();
+}
+
+void HTTP_UI_JPEG_STORE_Task(void *arg)
+{
+  M5_LOGD("");
+
+  HTTP_UI_JPEG_STORE_TaskArgs *taskArgs = (HTTP_UI_JPEG_STORE_TaskArgs *)arg;
+  *(taskArgs->HTTP_UI_JPEG_len) = 0;
+
+  if (PoECAM.Camera.get())
+  {
+    int32_t frame_len = PoECAM.Camera.fb->len;
+    uint8_t *frame_buf = PoECAM.Camera.fb->buf;
+    pixformat_t pixmode = PoECAM.Camera.fb->format;
+    u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
+    u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
+
+    taskArgs->pixmode = pixmode;
+    taskArgs->fb_width = fb_width;
+    taskArgs->fb_height = fb_height;
+
+    if (*(taskArgs->HTTP_UI_JPEG_buf) != nullptr)
+    {
+      free(*(taskArgs->HTTP_UI_JPEG_buf));
+    }
+
+    *(taskArgs->HTTP_UI_JPEG_buf) = (uint8_t *)ps_malloc(frame_len);
+    memcpy(*(taskArgs->HTTP_UI_JPEG_buf), frame_buf, frame_len);
+
+    PoECAM.Camera.free();
+    *(taskArgs->HTTP_UI_JPEG_len) = frame_len;
+  }
+  vTaskDelete(NULL);
+  M5_LOGI("");
+}
+
+uint8_t *HTTP_UI_JPEG_sensorImageNow_JPEG_buf;
+int32_t HTTP_UI_JPEG_sensorImageNow_JPEG_len;
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
-  M5_LOGI("Sending JPEG image");
+  M5_LOGI("");
+
+  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_sensorImageNow_JPEG_buf, &HTTP_UI_JPEG_sensorImageNow_JPEG_len};
+  unit_flash_set_brightness(storeData.flashIntensityMode);
+  digitalWrite(FLASH_EN_PIN, HIGH);
+
+  delay(30);
+  xTaskCreatePinnedToCore(HTTP_UI_JPEG_STORE_Task, "HTTP_UI_JPEG_STORE_Task", 4096, &taskArgs, 0, NULL, 0);
+  delay(storeData.flashLength);
+  digitalWrite(FLASH_EN_PIN, LOW);
 
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: image/jpeg");
@@ -135,35 +320,60 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
   client.println("Access-Control-Allow-Origin: *");
   client.println();
 
-  if (PoECAM.Camera.get())
+  if (*(taskArgs.HTTP_UI_JPEG_len) > 0)
   {
-    PoECAM.setLed(true);
-    int32_t to_sends = PoECAM.Camera.fb->len;
+    int32_t to_sends = *(taskArgs.HTTP_UI_JPEG_len);
+    uint8_t *out_buf = *(taskArgs.HTTP_UI_JPEG_buf);
+
     int32_t now_sends = 0;
-    uint8_t *out_buf = PoECAM.Camera.fb->buf;
-    uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+    uint32_t packet_len = 1 * 1024;
 
     while (to_sends > 0)
     {
       now_sends = to_sends > packet_len ? packet_len : to_sends;
       if (client.write(out_buf, now_sends) == 0)
       {
-        goto client_exit;
+        break;
       }
       out_buf += now_sends;
       to_sends -= now_sends;
     }
 
-    M5_LOGI("JPEG sent successfully");
-    PoECAM.Camera.free();
-    PoECAM.setLed(false);
+    M5_LOGI("");
+  }
+  client.stop();
+}
+
+uint8_t *HTTP_UI_JPEG_flashTestJPEG;
+int32_t HTTP_UI_JPEG_flashTestJPEG_len;
+void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
+{
+  M5_LOGI("");
+
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: image/jpeg");
+  client.println("Content-Disposition: inline; filename=flashTestImage.jpg");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println();
+
+  uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+  int32_t now_sends = 0;
+  int32_t to_sends = HTTP_UI_JPEG_flashTestJPEG_len;
+  uint8_t *out_buf = HTTP_UI_JPEG_flashTestJPEG;
+
+  while (to_sends > 0)
+  {
+    now_sends = to_sends > packet_len ? packet_len : to_sends;
+    if (client.write(out_buf, now_sends) == 0)
+    {
+      break;
+    }
+    out_buf += now_sends;
+    to_sends -= now_sends;
   }
 
-client_exit:
-  PoECAM.Camera.free();
-  PoECAM.setLed(0);
   client.stop();
-  // M5_LOGI("JPEG transmission end");
+  M5_LOGI("");
 }
 
 void HTTP_UI_STREAM_JPEG(EthernetClient client)
@@ -368,6 +578,12 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("  });");
   client.println("}");
 
+  uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
+  uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
+  uint32_t x1 = (uint32_t)((iWidth * storeData.pixLineRange) / 200);
+  uint32_t xw =  (uint32_t)((iWidth * storeData.pixLineRange) / 100);
+  uint32_t y1 = (uint32_t)((iHeight) / 2)-1;
+
   client.println("function refreshImage() {");
   client.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
   client.println("  var img = new Image();");
@@ -377,9 +593,10 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
   client.println("    ctx.strokeStyle = 'red';");
   client.println("    ctx.lineWidth = 1;");
-  client.println("    ctx.strokeRect(80 * (canvas.width / img.width), 119 * (canvas.height / img.height), 160 * (canvas.width / img.width), 2 * (canvas.height / img.height));"); // 赤線の四角形の枠
+  client.printf( "    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));",x1,y1,xw);
+  client.println("");
   client.println("  };");
-  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  client.println("  img.src = '/cameraLineNow.jpg?' + new Date().getTime();"); // add timestamp
   client.println("}");
 
   client.println("function update() {");
@@ -387,7 +604,7 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("  refreshImage();");
   client.println("}");
 
-  client.printf("setInterval(update, %u);", storeData.chartUpdateInterval > 3000 ? storeData.chartUpdateInterval - 3000 : 1);
+  client.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
   client.println("update();");
   client.println("</script>");
 
@@ -944,12 +1161,10 @@ void HTTP_UI_POST_configTime(EthernetClient client)
   return;
 }
 
-uint8_t *flashTestJPEG;
-int32_t flashTestJPEG_len;
 void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
 {
   M5_LOGD("");
-  flashTestJPEG_len = 0;
+  HTTP_UI_JPEG_flashTestJPEG_len = 0;
   if (PoECAM.Camera.get())
   {
     int32_t frame_len = PoECAM.Camera.fb->len;
@@ -958,46 +1173,16 @@ void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
     u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
     u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
 
-    if (!flashTestJPEG)
-      free(flashTestJPEG);
+    if (!HTTP_UI_JPEG_flashTestJPEG)
+      free(HTTP_UI_JPEG_flashTestJPEG);
 
-    flashTestJPEG = (uint8_t *)ps_malloc(frame_len);
-    memcpy(flashTestJPEG, frame_buf, frame_len);
+    HTTP_UI_JPEG_flashTestJPEG = (uint8_t *)ps_malloc(frame_len);
+    memcpy(HTTP_UI_JPEG_flashTestJPEG, frame_buf, frame_len);
 
     PoECAM.Camera.free();
-    flashTestJPEG_len = frame_len;
+    HTTP_UI_JPEG_flashTestJPEG_len = frame_len;
   }
   vTaskDelete(NULL);
-}
-
-void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
-{
-  M5_LOGI("");
-
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: image/jpeg");
-  client.println("Content-Disposition: inline; filename=flashTestImage.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
-
-  uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
-  int32_t now_sends = 0;
-  int32_t to_sends = flashTestJPEG_len;
-  uint8_t *out_buf = flashTestJPEG;
-
-  while (to_sends > 0)
-  {
-    now_sends = to_sends > packet_len ? packet_len : to_sends;
-    if (client.write(out_buf, now_sends) == 0)
-    {
-      break;
-    }
-    out_buf += now_sends;
-    to_sends -= now_sends;
-  }
-
-  client.stop();
-  M5_LOGI("");
 }
 
 void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
@@ -1089,7 +1274,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
   client.println("<br />");
   client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  if (flashTestJPEG_len > 0)
+  if (HTTP_UI_JPEG_flashTestJPEG_len > 0)
   {
     client.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
   }
@@ -1132,6 +1317,7 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "sensorValueNow.json", HTTP_UI_JSON_sensorValueNow},
     {HTTP_UI_MODE_GET, "unitTimeNow.json", HTTP_UI_JSON_unitTimeNow},
     {HTTP_UI_MODE_GET, "cameraLineNow.json", HTTP_UI_JSON_cameraLineNow},
+    {HTTP_UI_MODE_GET, "cameraLineNow.jpg", HTTP_UI_JPEG_cameraLineNow},
     {HTTP_UI_MODE_GET, "sensorImageNow.jpg", HTTP_UI_JPEG_sensorImageNow},
     {HTTP_UI_MODE_GET, "flashTestImage.jpg", HTTP_UI_JPEG_flashTestImage},
     {HTTP_UI_MODE_GET, "view.html", HTTP_UI_PAGE_view},
