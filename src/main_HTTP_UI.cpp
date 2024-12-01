@@ -10,15 +10,6 @@
 EthernetServer HttpUIServer(80);
 String SensorValueString = "";
 
-struct HTTP_UI_JPEG_STORE_TaskArgs
-{
-  uint8_t **HTTP_UI_JPEG_buf;
-  int32_t *HTTP_UI_JPEG_len;
-  u_int32_t fb_width;
-  u_int32_t fb_height;
-  pixformat_t pixmode;
-};
-
 void HTTP_UI_PART_ResponceHeader(EthernetClient client, String Content_Type)
 {
   client.println("HTTP/1.1 200 OK");
@@ -58,84 +49,6 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
-/*
-void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
-{
-  M5_LOGD("");
-  if (PoECAM.Camera.get())
-  {
-    PoECAM.setLed(true);
-
-    int32_t frame_len = PoECAM.Camera.fb->len;
-    uint8_t *frame_buf = PoECAM.Camera.fb->buf;
-    pixformat_t pixmode = PoECAM.Camera.fb->format;
-    u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
-    u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
-
-    // M5_LOGD("w: %u ,h: %u ,m:%u", fb_width, fb_height, pixmode);
-
-    uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * fb_width * fb_height);
-    fmt2rgb888(frame_buf, frame_len, pixmode, bitmap_buf);
-
-    PoECAM.Camera.free();
-
-    uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
-    pixLineStep = pixLineStep > fb_width ? fb_width : pixLineStep;
-    uint32_t pixLineRange = (u_int32_t)(storeData.pixLineRange);
-    pixLineRange = pixLineRange > 100u ? 100u : pixLineRange;
-
-    // M5_LOGD("Step: %u ,Range: %u", pixLineStep, pixLineRange);
-
-    uint32_t RangePix = fb_width * pixLineRange / 100;
-    uint32_t xStartPix = ((fb_width * (100u - pixLineRange)) / 200u);
-    uint32_t xEndPix = xStartPix + ((fb_width * pixLineRange) / 100u);
-
-    // M5_LOGD("xStartPix= %u xEndPix= %u, RangePix= %u", xStartPix, xEndPix, RangePix);
-    // M5_LOGD("%u - %u", xStartPix, xEndPix);
-
-    u_int32_t startOffset = (fb_width * fb_height / 2u + xStartPix) * 3u;
-    uint8_t *bitmap_pix = bitmap_buf + startOffset;
-    uint8_t *bitmap_pix_lineEnd = bitmap_buf + startOffset + (xEndPix - xStartPix) * 3u;
-
-    bitmap_pix_lineEnd = bitmap_pix_lineEnd == bitmap_pix ? bitmap_pix_lineEnd + 3u : bitmap_pix_lineEnd;
-
-    HTTP_UI_PART_ResponceHeader(client, "application/json");
-    client.print("{");
-    client.print("\"unitTime\":");
-    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
-    client.println(",");
-    client.print("\"CameraLineValue\":[");
-
-    u_int16_t br = 0;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    client.printf("%u", br);
-
-    while (bitmap_pix_lineEnd > bitmap_pix)
-    {
-      br = 0;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      client.printf(",%u", br);
-
-      bitmap_pix += pixLineStep * 3;
-    }
-
-    client.println("]}");
-    free(bitmap_buf);
-  }
-  // M5_LOGD("");
-}
-*/
-
 uint8_t *HTTP_UI_JPEG_cameraLineNow_JPEG_buf;
 int32_t HTTP_UI_JPEG_cameraLineNow_JPEG_len;
 
@@ -152,16 +65,12 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
   delay(storeData.flashLength);
   digitalWrite(FLASH_EN_PIN, LOW);
 
+  if (storeData.flashLength < 30)
+    delay(30 - storeData.flashLength);
+
   if (HTTP_UI_JPEG_cameraLineNow_JPEG_len > 0)
   {
     PoECAM.setLed(true);
-    /*
-        int32_t frame_len = PoECAM.Camera.fb->len;
-        uint8_t *frame_buf = PoECAM.Camera.fb->buf;
-        pixformat_t pixmode = PoECAM.Camera.fb->format;
-        u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
-        u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
-    */
 
     int32_t frame_len = *(taskArgs.HTTP_UI_JPEG_len);
     uint8_t *frame_buf = *(taskArgs.HTTP_UI_JPEG_buf);
@@ -173,8 +82,6 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 
     uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * taskArgs.fb_width * taskArgs.fb_height);
     fmt2rgb888(frame_buf, frame_len, pixmode, bitmap_buf);
-
-    // PoECAM.Camera.free();
 
     uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
     pixLineStep = pixLineStep > fb_width ? fb_width : pixLineStep;
@@ -226,10 +133,58 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
       bitmap_pix += pixLineStep * 3;
     }
 
-    client.println("]}");
+    client.println("]");
+    client.println(",");
+
+    client.print("\"edgePoint\":");
+    uint16_t edgePoint = HTTP_UI_JSON_cameraLineNow_EdgePosition(bitmap_buf, taskArgs);
+    client.printf("%u", edgePoint);
+
+    client.println("}");
+
     free(bitmap_buf);
   }
   // M5_LOGD("");
+}
+
+uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
+{
+
+  int32_t fb_width = (int32_t)((taskArgs.fb_width));
+  int32_t fb_height = (int32_t)((taskArgs.fb_height));
+  int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
+  int32_t xEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
+  M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
+
+  int32_t xStartPix = (int32_t)((fb_width * xStartRate) / 100);
+  int32_t xEndPix = (int32_t)((fb_width * xEndRate) / 100);
+  M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
+
+  int32_t xStep = xStartPix < xEndPix ? 1 : -1;
+
+  int32_t startOffset = (fb_width * fb_height / 2 ) * 3;
+  uint8_t *bitmap_pix = bitmap_buf + startOffset;
+  int16_t br = 0;
+  int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
+  int32_t th = (int32_t)storeData.pixLineThrethold;
+
+  int32_t x = xStartPix;
+
+  for (; (xEndPix - x) * xStep > 0; x += xStep)
+  {
+    bitmap_pix = bitmap_buf + startOffset + x * 3;
+    br = 0;
+    br += *(bitmap_pix);
+    br += *(bitmap_pix + 1);
+    br += *(bitmap_pix + 2);
+    M5_LOGI("%d : %d / %d",x, br, th);
+    if ((th - br) * EdgeMode < 0)
+    {
+      return (uint16_t)x;
+    }
+  }
+
+  return (uint16_t)x;
 }
 
 void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
@@ -512,8 +467,9 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
 
   client.println("<h1>Camera Line View</h1>");
 
-  client.println("<ul id=\"unitTime\">");
+  client.println("<ul id=\"valueLabel\">");
   client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  client.println("<li>edgePoint: <span id=\"edgePoint\"></span></li>");
   client.println("</ul>");
 
   client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
@@ -531,6 +487,7 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("      var data = JSON.parse(xhr.responseText);");
   client.println("      updateChart(data.CameraLineValue);");
   client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  client.println("      document.getElementById('edgePoint').innerText = data.edgePoint;");
   client.println("    }");
   client.println("  };");
   client.println("  xhr.open('GET', '/cameraLineNow.json', true);");
@@ -580,9 +537,9 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
 
   uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
   uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
-  uint32_t x1 = (uint32_t)((iWidth * storeData.pixLineRange) / 200);
-  uint32_t xw =  (uint32_t)((iWidth * storeData.pixLineRange) / 100);
-  uint32_t y1 = (uint32_t)((iHeight) / 2)-1;
+  uint32_t x1 = (uint32_t)((iWidth * (100-storeData.pixLineRange)) / 200);
+  uint32_t xw = (uint32_t)((iWidth * storeData.pixLineRange) / 100);
+  uint32_t y1 = (uint32_t)((iHeight) / 2) - 1;
 
   client.println("function refreshImage() {");
   client.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
@@ -593,7 +550,7 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
   client.println("    ctx.strokeStyle = 'red';");
   client.println("    ctx.lineWidth = 1;");
-  client.printf( "    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));",x1,y1,xw);
+  client.printf("    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
   client.println("");
   client.println("  };");
   client.println("  img.src = '/cameraLineNow.jpg?' + new Date().getTime();"); // add timestamp
@@ -794,6 +751,10 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
   HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength, "ms");
   HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineStep, "px [0-]");
   HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineRange, "%");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeSearchStart, "0-100%");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeSearchEnd, "0-100%");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeUp, "1: dark -> light / 2: light -> dark");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineThrethold, "0-765");
 
   String optionString = " selected";
   int pixformat_i = pixformat.toInt();
@@ -911,6 +872,11 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
 
   HTTP_GET_PARAM_FROM_POST(pixLineStep);
   HTTP_GET_PARAM_FROM_POST(pixLineRange);
+
+  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchStart);
+  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchEnd);
+  HTTP_GET_PARAM_FROM_POST(pixLineEdgeUp);
+  HTTP_GET_PARAM_FROM_POST(pixLineThrethold);
 
   HTTP_GET_PARAM_FROM_POST(pixformat);
   HTTP_GET_PARAM_FROM_POST(framesize);

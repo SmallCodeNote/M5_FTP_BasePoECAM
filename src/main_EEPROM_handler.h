@@ -5,9 +5,9 @@
 #ifndef MAIN_EEPROM_HANDLER_H
 #define MAIN_EEPROM_HANDLER_H
 
-#define STORE_DATA_SIZE 256                // byte
+#define STORE_DATA_SIZE 512                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x54
+#define EEPROM_CHECK_CODE 0x56
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -28,6 +28,11 @@ struct DATA_SET
 
     uint8_t pixLineStep;
     uint8_t pixLineRange;
+
+    uint8_t pixLineEdgeSearchStart; //[0-100%]
+    uint8_t pixLineEdgeSearchEnd;   // [0-100%]
+    uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
+    uint16_t pixLineThrethold;      //[0-765]
 
     // Sensor values
     pixformat_t pixformat;
@@ -90,6 +95,11 @@ extern String flashLength;
 
 extern String pixLineStep;
 extern String pixLineRange;
+
+extern String pixLineEdgeSearchStart; //[0-100%]
+extern String pixLineEdgeSearchEnd;   // [0-100%]
+extern String pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
+extern String pixLineThrethold;       //[0-765]
 
 extern String pixformat;
 extern String framesize;

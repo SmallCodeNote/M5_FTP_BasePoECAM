@@ -1,5 +1,6 @@
 #include <M5Unified.h>
 #include <M5_Ethernet.h>
+#include "main.h"
 
 #ifndef MAIN_HTTP_UI_H
 #define MAIN_HTTP_UI_H
@@ -69,6 +70,14 @@ struct PageHandler
   void (*handler)(EthernetClient);
 };
 
+struct HTTP_UI_JPEG_STORE_TaskArgs
+{
+  uint8_t **HTTP_UI_JPEG_buf;
+  int32_t *HTTP_UI_JPEG_len;
+  u_int32_t fb_width;
+  u_int32_t fb_height;
+  pixformat_t pixmode;
+};
 
 
 extern EthernetServer HttpUIServer;
@@ -80,7 +89,10 @@ void HTTP_UI_PART_HTMLFooter(EthernetClient client);
 
 void HTTP_UI_JSON_sensorValueNow(EthernetClient client);
 void HTTP_UI_JSON_unitTimeNow(EthernetClient client);
+
 void HTTP_UI_JSON_cameraLineNow(EthernetClient client);
+uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs);
+
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client);
 void HTTP_UI_JPEG_flashTestImage(EthernetClient client);
 void HTTP_UI_STREAM_JPEG(EthernetClient client);
@@ -88,6 +100,7 @@ void HTTP_UI_STREAM_JPEG(EthernetClient client);
 void HTTP_UI_PAGE_top(EthernetClient client);
 void HTTP_UI_PAGE_view(EthernetClient client);
 void HTTP_UI_PAGE_cameraLineView(EthernetClient client);
+
 void HTTP_UI_PAGE_chart(EthernetClient client);
 void HTTP_UI_PAGE_notFound(EthernetClient client);
 
