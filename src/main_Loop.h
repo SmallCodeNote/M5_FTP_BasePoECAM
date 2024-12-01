@@ -16,6 +16,5 @@ typedef struct
   unsigned long currentEpoch;
 } SensorShotTaskParams;
 
-void unit_flash_set_brightness(uint8_t brightness);
 
 #endif

@@ -239,6 +239,8 @@ void HTTP_UI_PAGE_top(EthernetClient client)
   client.println("<a href=\"/configChart.html\">Config Chart Page</a><br>");
   client.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
 
+  client.println("<a href=\"/flashSwitch.html\">flashSwitch Page</a><br>");
+
   client.println("<br>");
   client.println("<hr>");
   client.println("<br>");
@@ -354,12 +356,12 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("        y: {");
   client.println("          type: 'linear',");
   client.println("          position: 'right'");
-//  client.println("          display: false"); 
+  //  client.println("          display: false");
   client.println("        }");
   client.println("      },");
   client.println("      plugins: {");
   client.println("        legend: {");
-  client.println("          display: false"); 
+  client.println("          display: false");
   client.println("        }");
   client.println("      }");
   client.println("    }");
@@ -371,13 +373,13 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("  var img = new Image();");
   client.println("  img.onload = function() {");
   client.println("    var canvas = document.getElementById('cameraImage');");
-  client.println("    canvas.height = img.height * (canvas.width / img.width);"); 
+  client.println("    canvas.height = img.height * (canvas.width / img.width);");
   client.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
   client.println("    ctx.strokeStyle = 'red';");
   client.println("    ctx.lineWidth = 1;");
-  client.println("    ctx.strokeRect(80 * (canvas.width / img.width), 119 * (canvas.height / img.height), 160 * (canvas.width / img.width), 2 * (canvas.height / img.height));");  // 赤線の四角形の枠
+  client.println("    ctx.strokeRect(80 * (canvas.width / img.width), 119 * (canvas.height / img.height), 160 * (canvas.width / img.width), 2 * (canvas.height / img.height));"); // 赤線の四角形の枠
   client.println("  };");
-  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();");  // add timestamp
+  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
   client.println("}");
 
   client.println("function update() {");
@@ -942,6 +944,158 @@ void HTTP_UI_POST_configTime(EthernetClient client)
   return;
 }
 
+uint8_t *flashTestJPEG;
+int32_t flashTestJPEG_len;
+void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
+{
+  M5_LOGD("");
+  flashTestJPEG_len = 0;
+  if (PoECAM.Camera.get())
+  {
+    int32_t frame_len = PoECAM.Camera.fb->len;
+    uint8_t *frame_buf = PoECAM.Camera.fb->buf;
+    pixformat_t pixmode = PoECAM.Camera.fb->format;
+    u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
+    u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
+
+    if (!flashTestJPEG)
+      free(flashTestJPEG);
+
+    flashTestJPEG = (uint8_t *)ps_malloc(frame_len);
+    memcpy(flashTestJPEG, frame_buf, frame_len);
+
+    PoECAM.Camera.free();
+    flashTestJPEG_len = frame_len;
+  }
+  vTaskDelete(NULL);
+}
+
+void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
+{
+  M5_LOGI("");
+
+  client.println("HTTP/1.1 200 OK");
+  client.println("Content-Type: image/jpeg");
+  client.println("Content-Disposition: inline; filename=flashTestImage.jpg");
+  client.println("Access-Control-Allow-Origin: *");
+  client.println();
+
+  uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+  int32_t now_sends = 0;
+  int32_t to_sends = flashTestJPEG_len;
+  uint8_t *out_buf = flashTestJPEG;
+
+  while (to_sends > 0)
+  {
+    now_sends = to_sends > packet_len ? packet_len : to_sends;
+    if (client.write(out_buf, now_sends) == 0)
+    {
+      break;
+    }
+    out_buf += now_sends;
+    to_sends -= now_sends;
+  }
+
+  client.stop();
+  M5_LOGI("");
+}
+
+void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
+{
+  String currentLine = "";
+  // Load post data
+  while (client.available())
+  {
+    char c = client.read();
+    if (c == '\n' && currentLine.length() == 0)
+    {
+      break;
+    }
+    currentLine += c;
+  }
+
+  String flashSwitchStatus = "OFF";
+  String flashBrightnessStatus = "0";
+  String flashTestLength = "10";
+
+  HTTP_GET_PARAM_FROM_POST(flashSwitchStatus);
+  HTTP_GET_PARAM_FROM_POST(flashBrightnessStatus);
+  HTTP_GET_PARAM_FROM_POST(flashTestLength);
+  uint8_t brightness_u = flashBrightnessStatus.toInt();
+  uint32_t flashTestLength_u = flashTestLength.toInt();
+
+  if (flashSwitchStatus == "ON")
+  {
+    M5_LOGW("FlashON: %u", brightness_u);
+    unit_flash_set_brightness(brightness_u);
+    digitalWrite(FLASH_EN_PIN, HIGH);
+
+    delay(30);
+    xTaskCreatePinnedToCore(HTTP_UI_PAGE_flashSwitch_Task, "HTTP_UI_PAGE_flashSwitch_Task", 4096, NULL, 0, NULL, 0);
+    delay(flashTestLength_u);
+
+    digitalWrite(FLASH_EN_PIN, LOW);
+  }
+  else
+  {
+    M5_LOGW("FlashOFF");
+  }
+
+  HTTP_UI_PART_ResponceHeader(client, "text/html");
+  HTTP_UI_PART_HTMLHeader(client);
+
+  client.println("<h1>" + deviceName + "</h1>");
+  client.println("<br />");
+
+  client.println("<form action=\"/flashSwitch.html\" method=\"post\">");
+  client.println("<ul>");
+
+  currentLine = "";
+  flashSwitchStatus = "ON";
+  HTML_PUT_LI_INPUT(flashSwitchStatus);
+  HTML_PUT_LI_INPUT(flashTestLength);
+
+  String optionString = " selected";
+
+  client.println("<label for=\"flashBrightnessStatus\">Brightness:</label>");
+  client.println("<select id=\"flashBrightnessStatus\" name=\"flashBrightnessStatus\">");
+
+  client.printf("<option value=\"%d\" %s>Flashlight off</option>", 0, brightness_u == 0 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>100%% brightness + 220ms</option>", 1, brightness_u == 1 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>90%% brightness + 220ms</option>", 2, brightness_u == 2 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>80%% brightness + 220ms</option>", 3, brightness_u == 3 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>70%% brightness + 220ms</option>", 4, brightness_u == 4 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>60%% brightness + 220ms</option>", 5, brightness_u == 5 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>50%% brightness + 220ms</option>", 6, brightness_u == 6 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>40%% brightness + 220ms</option>", 7, brightness_u == 7 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>30%% brightness + 220ms</option>", 8, brightness_u == 8 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>100%% brightness + 1.3s</option>", 9, brightness_u == 9 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>90%% brightness + 1.3s</option>", 10, brightness_u == 10 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>80%% brightness + 1.3s</option>", 11, brightness_u == 11 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>70%% brightness + 1.3s</option>", 12, brightness_u == 12 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>60%% brightness + 1.3s</option>", 13, brightness_u == 13 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>50%% brightness + 1.3s</option>", 14, brightness_u == 14 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>40%% brightness + 1.3s</option>", 15, brightness_u == 15 ? "selected" : "");
+  client.printf("<option value=\"%d\" %s>30%% brightness + 1.3s</option>", 16, brightness_u == 16 ? "selected" : "");
+
+  client.println("</select><br>");
+
+  client.println("<li class=\"button\">");
+  client.println("<button type=\"submit\">Flash</button>");
+  client.println("</li>");
+  client.println("</ul>");
+  client.println("</form>");
+
+  client.println("<br />");
+  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  if (flashTestJPEG_len > 0)
+  {
+    client.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
+  }
+
+  HTTP_UI_PART_HTMLFooter(client);
+}
 String urlDecode(String input)
 {
   String decoded = "";
@@ -979,6 +1133,7 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "unitTimeNow.json", HTTP_UI_JSON_unitTimeNow},
     {HTTP_UI_MODE_GET, "cameraLineNow.json", HTTP_UI_JSON_cameraLineNow},
     {HTTP_UI_MODE_GET, "sensorImageNow.jpg", HTTP_UI_JPEG_sensorImageNow},
+    {HTTP_UI_MODE_GET, "flashTestImage.jpg", HTTP_UI_JPEG_flashTestImage},
     {HTTP_UI_MODE_GET, "view.html", HTTP_UI_PAGE_view},
     {HTTP_UI_MODE_GET, "chart.js", HTTP_UI_JS_ChartJS},
     {HTTP_UI_MODE_GET, "chart.html", HTTP_UI_PAGE_chart},
@@ -989,6 +1144,8 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "configCamera.html", HTTP_UI_PAGE_configCamera},
     {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
     {HTTP_UI_MODE_GET, "unitTime.html", HTTP_UI_PAGE_unitTime},
+    {HTTP_UI_MODE_GET, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
+    {HTTP_UI_MODE_POST, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
     {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
     {HTTP_UI_MODE_POST, "configParamSuccess.html", HTTP_UI_POST_configParam},
     {HTTP_UI_MODE_POST, "configChartSuccess.html", HTTP_UI_POST_configChart},

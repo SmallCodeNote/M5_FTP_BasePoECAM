@@ -12,6 +12,8 @@ void CameraSensorFullSetupFromStoreData();
 void CameraSensorSetJPEG();
 void CameraSensorSetGRAYSCALE();
 
+void unit_flash_set_brightness(uint8_t brightness);
+
 uint16_t CameraSensorFrameWidth(framesize_t framesize);
 uint16_t CameraSensorFrameHeight(framesize_t framesize);
 

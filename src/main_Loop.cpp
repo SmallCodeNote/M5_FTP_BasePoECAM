@@ -216,22 +216,3 @@ bool SensorShotTaskRunTrigger(unsigned long currentEpoch)
 
   return false;
 }
-
-void unit_flash_set_brightness(uint8_t brightness)
-{
-  if ((brightness >= 1) && (brightness <= 16))
-  {
-    for (int i = 0; i < brightness; i++)
-    {
-      digitalWrite(FLASH_EN_PIN, LOW);
-      delayMicroseconds(4);
-      digitalWrite(FLASH_EN_PIN, HIGH);
-      delayMicroseconds(4);
-    }
-  }
-  else
-  {
-    digitalWrite(FLASH_EN_PIN, LOW);
-  }
-  M5_LOGI("unit_flash_set_brightness = %u", brightness);
-}
