@@ -11,6 +11,8 @@ String ftpImageSaveInterval = "0";
 String ftpEdgeSaveInterval = "0";
 String ftpProfileSaveInterval = "0";
 
+String imageBufferingInterval = "1";
+
 String chartShowPointCount = "60";
 String chartUpdateInterval = "1000";
 
@@ -73,6 +75,8 @@ void InitEEPROM()
     ftpImageSaveInterval = "0";
     ftpEdgeSaveInterval = "0";
     ftpProfileSaveInterval = "0";
+
+    imageBufferingInterval = "1";
 
     chartShowPointCount = "60";
     chartUpdateInterval = "1000";
@@ -147,6 +151,9 @@ void PutEEPROM()
     M5_LOGI("PutEEPROM: ftpImageSaveInterval = %s, %u", ftpImageSaveInterval.c_str(), (storeData.ftpImageSaveInterval));
     M5_LOGI("PutEEPROM: ftpEdgeSaveInterval = %s, %u", ftpEdgeSaveInterval.c_str(), (storeData.ftpEdgeSaveInterval));
     M5_LOGI("PutEEPROM: ftpProfileSaveInterval = %s, %u", ftpProfileSaveInterval.c_str(), (storeData.ftpProfileSaveInterval));
+
+    M5_LOGI("PutEEPROM: ftpProfileSaveInterval = %s, %u", imageBufferingInterval.c_str(), (storeData.imageBufferingInterval));
+
     M5_LOGI("PutEEPROM: chartUpdateInterval = %s, %u", chartUpdateInterval.c_str(), (storeData.chartUpdateInterval));
     M5_LOGI("PutEEPROM: chartShowPointCount = %s, %u", chartShowPointCount.c_str(), (storeData.chartShowPointCount));
 
@@ -198,6 +205,8 @@ void SetStringsFromStoreData()
     ftpImageSaveInterval = String(storeData.ftpImageSaveInterval);
     ftpEdgeSaveInterval = String(storeData.ftpEdgeSaveInterval);
     ftpProfileSaveInterval = String(storeData.ftpProfileSaveInterval);
+
+    imageBufferingInterval = String(storeData.imageBufferingInterval);
 
     chartUpdateInterval = String(storeData.chartUpdateInterval);
     chartShowPointCount = String(storeData.chartShowPointCount);
@@ -259,7 +268,14 @@ void SetStoreDataFromStrings()
 
     storeData.ftpImageSaveInterval = (u_int16_t)(ftpImageSaveInterval.toInt());
     storeData.ftpEdgeSaveInterval = (u_int16_t)(ftpEdgeSaveInterval.toInt());
-    storeData.ftpProfileSaveInterval = (u_int16_t)(ftpProfileSaveInterval.toInt()); 
+    storeData.ftpProfileSaveInterval = (u_int16_t)(ftpProfileSaveInterval.toInt());
+
+    storeData.imageBufferingInterval = (u_int16_t)(imageBufferingInterval.toInt());
+    if (storeData.imageBufferingInterval < 1)
+    {
+        storeData.imageBufferingInterval = 1;
+        imageBufferingInterval = "1";
+    }
 
     storeData.chartUpdateInterval = (u_int16_t)(chartUpdateInterval.toInt());
     storeData.chartShowPointCount = (u_int16_t)(chartShowPointCount.toInt());

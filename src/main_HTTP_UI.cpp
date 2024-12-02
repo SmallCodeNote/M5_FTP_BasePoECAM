@@ -311,7 +311,7 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
   client.println("Access-Control-Allow-Origin: *");
   client.println();
 
-  uint32_t packet_len = 1 * 1024; // 1KBごとのパケットに分割して送信
+  uint32_t packet_len = 1 * 1024; 
   int32_t now_sends = 0;
   int32_t to_sends = HTTP_UI_JPEG_flashTestJPEG_len;
   uint8_t *out_buf = HTTP_UI_JPEG_flashTestJPEG;

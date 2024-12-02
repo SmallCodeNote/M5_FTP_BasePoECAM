@@ -650,6 +650,30 @@ uint16_t M5_Ethernet_FtpClient::AppendTextLine(String filePath, String textLine)
 
 /////////////////////////////////////////////
 
+uint16_t M5_Ethernet_FtpClient::AppendDataArrayAsTextLine(String filePath, String headLine, u_int16_t *buf, int32_t len)
+{
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
+  if (isErrorCode(InitAsciiPassiveMode()))
+    return CloseDataClient();
+
+  if (isErrorCode(AppendFile(filePath)))
+    return CloseDataClient();
+
+  WriteData(headLine);
+
+  for (int32_t i = 0; i < len; i++)
+  {
+    WriteData("," + String(buf[i]));
+  }
+
+  if (isErrorCode(WriteData("\r\n")))
+    return CloseDataClient();
+
+  return CloseDataClient();
+}
+
+/////////////////////////////////////////////
+
 uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data, int datalength)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;

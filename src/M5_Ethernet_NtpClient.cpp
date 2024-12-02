@@ -78,6 +78,10 @@ String M5_Ethernet_NtpClient::convertTimeEpochToString()
 {
     return convertTimeEpochToString("yyyy/mm/dd HH:mm:ss", currentEpoch);
 }
+String M5_Ethernet_NtpClient::convertTimeEpochToString(unsigned long _currentEpoch)
+{
+    return convertTimeEpochToString("yyyy/mm/dd HH:mm:ss", _currentEpoch);
+}
 
 String M5_Ethernet_NtpClient::convertTimeEpochToString(String format)
 {
@@ -233,6 +237,18 @@ String M5_Ethernet_NtpClient::readHour(unsigned long Epoch)
         struct tm *ptm = gmtime((time_t *)&Epoch);
         char buffer[3];
         sprintf(buffer, "%02d", ptm->tm_hour); // tm_hour is hour of the day (0-23)
+        return String(buffer);
+    }
+    return String("Hour not available");
+}
+
+String M5_Ethernet_NtpClient::readHour(unsigned long Epoch, int div)
+{
+    if (Epoch != 0)
+    {
+        struct tm *ptm = gmtime((time_t *)&Epoch);
+        char buffer[3];
+        sprintf(buffer, "%02d", (ptm->tm_hour / div) * div); // tm_hour is hour of the day (0-23)
         return String(buffer);
     }
     return String("Hour not available");

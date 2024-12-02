@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 512                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x57
+#define EEPROM_CHECK_CODE 0x58
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -22,6 +22,8 @@ struct DATA_SET
     u_int16_t ftpImageSaveInterval;
     u_int16_t ftpEdgeSaveInterval;
     u_int16_t ftpProfileSaveInterval;
+
+    u_int16_t imageBufferingInterval;
 
     u_int16_t chartUpdateInterval;
     u_int16_t chartShowPointCount;
@@ -93,6 +95,9 @@ extern String ftpSaveInterval;
 extern String ftpImageSaveInterval;
 extern String ftpEdgeSaveInterval;
 extern String ftpProfileSaveInterval;
+
+extern String imageBufferingInterval;
+
 
 extern String chartUpdateInterval;
 extern String chartShowPointCount;
