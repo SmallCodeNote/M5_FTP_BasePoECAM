@@ -49,10 +49,10 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
-uint8_t *HTTP_UI_JPEG_cameraLineNow_JPEG_buf;
-int32_t HTTP_UI_JPEG_cameraLineNow_JPEG_len;
+// uint8_t *HTTP_UI_JPEG_cameraLineNow_JPEG_buf;
+// int32_t HTTP_UI_JPEG_cameraLineNow_JPEG_len;
 
-void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
+/*void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 {
   M5_LOGD("");
 
@@ -146,6 +146,43 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
   }
   // M5_LOGD("");
 }
+*/
+
+void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
+{
+  ProfItem profItem;
+  EdgeItem edgeItem;
+  M5_LOGD("");
+  if (xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY) == pdPASS)
+  {
+
+    M5_LOGD("");
+    xQueuePeek(xQueueEdge_Last, &edgeItem, portMAX_DELAY);
+
+    HTTP_UI_PART_ResponceHeader(client, "application/json");
+    client.print("{");
+    client.print("\"unitTime\":");
+    client.printf("\"%s\"", NtpClient.convertTimeEpochToString(profItem.epoc).c_str());
+    client.println(",");
+    client.print("\"CameraLineValue\":[");
+    client.printf("%u", profItem.buf[0]);
+    M5_LOGD("");
+    for (size_t i = 1; i < profItem.len; i++)
+    {
+      client.printf(",%u", profItem.buf[i]);
+    }
+
+    client.println("]");
+    client.println(",");
+
+    client.print("\"edgePoint\":");
+    client.printf("%u", edgeItem.edgeX);
+    client.println("}");
+    M5_LOGD("");
+    free(profItem.buf);
+  }
+  M5_LOGD("");
+}
 
 uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
 {
@@ -186,7 +223,7 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JP
 
   return (uint16_t)x;
 }
-
+/*
 void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
 {
   M5_LOGI("");
@@ -215,6 +252,41 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
       out_buf += now_sends;
       to_sends -= now_sends;
     }
+    M5_LOGI("");
+  }
+  client.stop();
+}
+*/
+
+void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
+{
+  M5_LOGI("");
+  JpegItem jpegItem;
+  if (xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    int32_t to_sends = jpegItem.len;
+    uint8_t *out_buf = jpegItem.buf;
+
+    int32_t now_sends = 0;
+    uint32_t packet_len = 1 * 1024;
+
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        break;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
+    free(jpegItem.buf);
     M5_LOGI("");
   }
   client.stop();
@@ -253,7 +325,7 @@ void HTTP_UI_JPEG_STORE_Task(void *arg)
   vTaskDelete(NULL);
   M5_LOGI("");
 }
-
+/*
 uint8_t *HTTP_UI_JPEG_sensorImageNow_JPEG_buf;
 int32_t HTTP_UI_JPEG_sensorImageNow_JPEG_len;
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
@@ -298,6 +370,41 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
   }
   client.stop();
 }
+*/
+
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
+{
+  M5_LOGI("");
+  JpegItem jpegItem;
+  if (xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    int32_t to_sends = jpegItem.len;
+    uint8_t *out_buf = jpegItem.buf;
+
+    int32_t now_sends = 0;
+    uint32_t packet_len = 1 * 1024;
+
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        break;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
+    free(jpegItem.buf);
+    M5_LOGI("");
+  }
+  client.stop();
+}
 
 uint8_t *HTTP_UI_JPEG_flashTestJPEG;
 int32_t HTTP_UI_JPEG_flashTestJPEG_len;
@@ -311,7 +418,7 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
   client.println("Access-Control-Allow-Origin: *");
   client.println();
 
-  uint32_t packet_len = 1 * 1024; 
+  uint32_t packet_len = 1 * 1024;
   int32_t now_sends = 0;
   int32_t to_sends = HTTP_UI_JPEG_flashTestJPEG_len;
   uint8_t *out_buf = HTTP_UI_JPEG_flashTestJPEG;
@@ -674,6 +781,8 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   HTML_PUT_LI_WIDEINPUT(ftp_user);
   HTML_PUT_LI_WIDEINPUT(ftp_pass);
 
+  HTML_PUT_LI_INPUT(imageBufferingInterval);
+
   HTML_PUT_LI_INPUT(ftpImageSaveInterval);
   HTML_PUT_LI_INPUT(ftpEdgeSaveInterval);
   HTML_PUT_LI_INPUT(ftpProfileSaveInterval);
@@ -717,6 +826,8 @@ void HTTP_UI_POST_configParam(EthernetClient client)
   HTTP_GET_PARAM_FROM_POST(ftpSrvIP_String);
   HTTP_GET_PARAM_FROM_POST(ftp_user);
   HTTP_GET_PARAM_FROM_POST(ftp_pass);
+
+  HTTP_GET_PARAM_FROM_POST(imageBufferingInterval);
 
   HTTP_GET_PARAM_FROM_POST(ftpImageSaveInterval);
   HTTP_GET_PARAM_FROM_POST(ftpEdgeSaveInterval);

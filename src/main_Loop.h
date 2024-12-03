@@ -4,33 +4,14 @@
 #define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 30
 #define MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX 1024
 
-typedef struct
+#include "main.h"
+
+typedef struct 
 {
   unsigned long currentEpoch;
-} SensorShotTaskParams;
+}SensorShotTaskParams;
 
-struct JpegItem
-{
-  unsigned long epoc;
-  uint8_t *buf;
-  int32_t len;
-  pixformat_t pixformat;
-  u_int32_t width;
-  u_int32_t height;
-};
 
-struct ProfItem
-{
-  unsigned long epoc;
-  int32_t len;
-  u_int16_t *buf;
-};
-
-struct EdgeItem
-{
-  unsigned long epoc;
-  u_int16_t edgeX;
-};
 
 void TimeUpdateLoop(void *arg);
 void TimeServerAccessLoop(void *arg);
@@ -45,14 +26,11 @@ unsigned long SensorShotStartOffset();
 void ImageStoreLoop(void *arg);
 void ImageProcessingLoop(void *arg);
 uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs);
+void DataSaveLoop(void *arg);
 
 String createFilenameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);
 String createDirectorynameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);
 
-
-
-extern QueueHandle_t xQueueJpeg_Store;
-extern QueueHandle_t xQueueEdge_Store;
-extern QueueHandle_t xQueueProf_Store;
+bool DataSave_Trigger(unsigned long currentEpoch, u_int16_t SaveInterval, unsigned long nextSaveEpoc);
 
 #endif
