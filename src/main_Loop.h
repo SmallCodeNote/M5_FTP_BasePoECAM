@@ -18,6 +18,8 @@ void TimeServerAccessLoop(void *arg);
 
 void ButtonKeepCountLoop(void *arg);
 
+void HTTPLoop(void *arg);
+
 void SensorShotLoop(void *arg);
 void SensorShotTask(void *param);
 bool SensorShotTaskRunTrigger(unsigned long currentEpoch);

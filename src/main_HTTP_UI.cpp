@@ -33,10 +33,20 @@ void HTTP_UI_PART_HTMLFooter(EthernetClient client)
 
 void HTTP_UI_JSON_sensorValueNow(EthernetClient client)
 {
+  EdgeItem edgeItem;
+
   HTTP_UI_PART_ResponceHeader(client, "application/json");
   client.print("{");
   client.print("\"distance\":");
-  client.print(String(SensorValueString.toInt()));
+  if (xQueuePeek(xQueueEdge_Last, &edgeItem, 0))
+  {
+    client.print(String(edgeItem.edgeX));
+  }
+  else
+  {
+    client.print(String(-1));
+  }
+  // client.print(String(SensorValueString.toInt()));
   client.println("}");
 }
 

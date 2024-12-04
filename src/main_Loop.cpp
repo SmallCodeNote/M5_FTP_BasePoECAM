@@ -58,167 +58,43 @@ void ButtonKeepCountLoop(void *arg)
   M5_LOGI("ButtonKeepCountLoop Start  ");
   int PushKeepSubSecCounter = 0;
 
+  bool pushBeforeCheckSpan = false;
+
   while (true)
   {
     delay(100);
-    M5.update();
-
-    if (M5.BtnA.isPressed())
+    PoECAM.update();
+    
+    if (PoECAM.BtnA.pressedFor(6000))
     {
-      M5_LOGI("BtnA Pressed");
-      PushKeepSubSecCounter++;
-    }
-    else if (M5.BtnA.wasReleased())
-    {
-      M5_LOGI("BtnA Released");
-      PushKeepSubSecCounter = 0;
+      M5_LOGI("Unit Initialize");
+      InitEEPROM();
+      break;
     }
 
-    if (PushKeepSubSecCounter > 60)
+if(pushBeforeCheckSpan)M5_LOGI("pushBeforeCheckSpan = true");
+    if (!pushBeforeCheckSpan && PoECAM.BtnA.pressedFor(200))
+    {
+      M5_LOGI("");
+      pushBeforeCheckSpan = true;
+    }
+    if (pushBeforeCheckSpan && PoECAM.BtnA.releasedFor(1000))
+    {
+      M5_LOGI("");
+      pushBeforeCheckSpan = false;
+    }
+    if (pushBeforeCheckSpan && PoECAM.BtnA.pressedFor(1000))
+    {
+      M5_LOGI("");
       break;
+    }
   }
 
-  bool LED_ON = true;
-  while (true)
-  {
-    delay(1000);
-
-    M5.update();
-    if (M5.BtnA.wasReleased())
-      break;
-    LED_ON = !LED_ON;
-  }
-
-  InitEEPROM();
+  M5_LOGW("ESP.restart()");
   delay(1000);
   ESP.restart();
 
   vTaskDelete(NULL);
-}
-
-void SensorShotLoop(void *arg)
-{
-  unsigned long lastWriteEpoc = 0;
-  unsigned long lastCheckEpoc = 0;
-  SensorShotTaskParams taskParam;
-
-  M5_LOGI("SensorShotLoop Start  ");
-
-  while (true)
-  {
-    if ((Ethernet.linkStatus() == LinkON) && storeData.ftpImageSaveInterval >= 1)
-    {
-      if (!ftp.isConnected())
-        ftp.OpenConnection();
-
-      unsigned long currentEpoch = NtpClient.currentEpoch;
-
-      if (currentEpoch < lastWriteEpoc)
-        lastWriteEpoc = 0;
-
-      if (currentEpoch - lastCheckEpoc > 1)
-        M5_LOGW("EpocDeltaOver 1:");
-
-      lastCheckEpoc = currentEpoch;
-      unsigned long shotStartOffset = SensorShotStartOffset();
-
-      if (currentEpoch >= lastWriteEpoc + storeData.ftpImageSaveInterval)
-      {
-        if ((shotStartOffset == 0 || SensorShotTaskRunTrigger(currentEpoch)))
-        {
-          taskParam.currentEpoch = currentEpoch;
-          xTaskCreatePinnedToCore(SensorShotTask, "SensorShotTask", 4096, &taskParam, 1, NULL, 1);
-          lastWriteEpoc = currentEpoch;
-        }
-      }
-    }
-    delay(100);
-  }
-
-  if (ftp.isConnected())
-    ftp.CloseConnection();
-
-  vTaskDelete(NULL);
-}
-
-String LastWriteDirectoryPath = "";
-void SensorShotTask(void *param)
-{
-  String directoryPath = "/" + deviceName;
-
-  SensorShotTaskParams *taskParam = (SensorShotTaskParams *)param;
-  unsigned long currentEpoch = taskParam->currentEpoch;
-
-  String ss = NtpClient.readSecond(currentEpoch);
-  String mm = NtpClient.readMinute(currentEpoch);
-  String HH = NtpClient.readHour(currentEpoch);
-  String DD = NtpClient.readDay(currentEpoch);
-  String MM = NtpClient.readMonth(currentEpoch);
-  String YYYY = NtpClient.readYear(currentEpoch);
-
-  String filePath = directoryPath + "/" + YYYY + MM + DD;
-
-  if (storeData.ftpImageSaveInterval > 60)
-  {
-    directoryPath = "/" + deviceName + "/" + YYYY;
-    filePath = directoryPath + "/" + YYYY + MM + DD + "_" + HH + mm;
-  }
-  else
-  {
-    directoryPath = "/" + deviceName + "/" + YYYY + "/" + YYYY + MM;
-    filePath = directoryPath + "/" + YYYY + MM + DD + "_" + HH + mm + ss;
-  }
-
-  unit_flash_set_brightness(storeData.flashIntensityMode);
-  delay(storeData.flashLength);
-  bool CameraGetImage = PoECAM.Camera.get();
-  digitalWrite(FLASH_EN_PIN, LOW);
-
-  if (CameraGetImage)
-  {
-    ftp.MakeDirRecursive(directoryPath);
-    ftp.AppendData(filePath + ".jpg", (u_char *)(PoECAM.Camera.fb->buf), (int)(PoECAM.Camera.fb->len));
-    PoECAM.Camera.free();
-  }
-
-  LastWriteDirectoryPath = directoryPath;
-  vTaskDelete(NULL);
-}
-
-unsigned long SensorShotStartOffset()
-{
-  const int intervals[] = {3600, 600, 300, 10, 5};
-  for (int i = 0; i < sizeof(intervals) / sizeof(intervals[0]); i++)
-  {
-    if (storeData.ftpImageSaveInterval % intervals[i] == 0)
-    {
-      return 1;
-    }
-  }
-  return 0;
-}
-
-bool SensorShotTaskRunTrigger(unsigned long currentEpoch)
-{
-  String ms = NtpClient.readMinute(currentEpoch);
-  char mc0 = ms[0];
-  char mc1 = ms[1];
-  String ss = NtpClient.readSecond(currentEpoch);
-  char sc0 = ss[0];
-  char sc1 = ss[1];
-
-  if (!(storeData.ftpImageSaveInterval % 3600) && mc0 == '0' && mc1 == '0' && sc0 == '0' && sc1 == '0')
-    return true;
-  else if (!(storeData.ftpImageSaveInterval % 600) && mc1 == '0' && sc0 == '0' && sc1 == '0')
-    return true;
-  else if (!(storeData.ftpImageSaveInterval % 300) && (mc1 == '0' || mc1 == '5') && sc0 == '0' && sc1 == '0')
-    return true;
-  else if (!(storeData.ftpImageSaveInterval % 10) && sc1 == '0')
-    return true;
-  else if (!(storeData.ftpImageSaveInterval % 5) && (sc1 == '0' || sc1 == '5'))
-    return true;
-
-  return false;
 }
 
 QueueHandle_t xQueueJpeg_Src;
@@ -232,9 +108,29 @@ void ImageStoreLoop(void *arg)
   unsigned long lastCheckEpoc = 0;
   unsigned long nextBufferingEpoc = 0;
 
+  unsigned long lastShotMillis = 0;
+  unsigned long nowShotMillis = 0;
+
+  u_int8_t flashMode = storeData.flashIntensityMode;
+  uint16_t flashLength = storeData.flashLength;
   while (true)
   {
     unsigned long currentEpoch = NtpClient.currentEpoch;
+
+    if (flashMode != storeData.flashIntensityMode)
+    {
+      unit_flash_set_brightness(storeData.flashIntensityMode);
+      flashMode = storeData.flashIntensityMode;
+    }
+    if (flashLength != storeData.flashLength)
+    {
+      flashLength = storeData.flashLength;
+    }
+
+    if (currentEpoch == 0)
+    {
+      currentEpoch = millis() / 1000;
+    }
 
     if (currentEpoch < lastWriteEpoc)
       lastWriteEpoc = 0;
@@ -243,25 +139,26 @@ void ImageStoreLoop(void *arg)
 
     if (currentEpoch >= nextBufferingEpoc)
     {
-      M5_LOGI("");
-      unit_flash_set_brightness(storeData.flashIntensityMode);
+      // M5_LOGI("");
       digitalWrite(FLASH_EN_PIN, HIGH);
-      delay(30);
+      // delay(30);
+      // M5_LOGD("currentEpoch = %u, nextBufferingEpoc = %u", currentEpoch, nextBufferingEpoc);
+      delay(flashLength);
+      nowShotMillis = millis();
       if (PoECAM.Camera.get())
       {
-        delay(storeData.flashLength);
         digitalWrite(FLASH_EN_PIN, LOW);
-
+        // M5_LOGI("");
         uint8_t *frame_buf = PoECAM.Camera.fb->buf;
         int32_t frame_len = PoECAM.Camera.fb->len;
         pixformat_t pixmode = PoECAM.Camera.fb->format;
         u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
         u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
-
+        // M5_LOGI("");
         uint8_t *frame_Jpeg = (uint8_t *)ps_malloc(frame_len);
         memcpy(frame_Jpeg, frame_buf, frame_len);
         PoECAM.Camera.free();
-
+        // M5_LOGI("");
         JpegItem jpegItem = {currentEpoch, frame_Jpeg, frame_len, pixmode, fb_width, fb_height};
 
         if (uxQueueSpacesAvailable(xQueueJpeg_Src) < 1)
@@ -278,10 +175,11 @@ void ImageStoreLoop(void *arg)
       lastCheckEpoc = currentEpoch;
       nextBufferingEpoc = currentEpoch + storeData.imageBufferingInterval;
 
-      M5_LOGI("");
+      M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
+      lastShotMillis = nowShotMillis;
     }
 
-    delay(200);
+    delay(100);
   }
   vTaskDelete(NULL);
 }
@@ -308,6 +206,8 @@ void ImageProcessingLoop(void *arg)
   while (true)
   {
     JpegItem jpegItem;
+    if (xQueueJpeg_Src != NULL)
+      M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
 
     while (xQueueJpeg_Src != NULL && xQueueReceive(xQueueJpeg_Src, &jpegItem, 0) == pdPASS)
     {
@@ -423,7 +323,7 @@ void ImageProcessingLoop(void *arg)
 
       delay(1000);
     }
-    M5_LOGW("");
+
     delay(1000);
   }
   vTaskDelete(NULL);
@@ -436,11 +336,11 @@ uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs
   int32_t fb_height = (int32_t)((taskArgs.height));
   int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
   int32_t xEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
-  M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
+  // M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
 
   int32_t xStartPix = (int32_t)((fb_width * xStartRate) / 100);
   int32_t xEndPix = (int32_t)((fb_width * xEndRate) / 100);
-  M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
+  // M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
 
   int32_t xStep = xStartPix < xEndPix ? 1 : -1;
 
@@ -459,7 +359,7 @@ uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs
     br += *(bitmap_pix);
     br += *(bitmap_pix + 1);
     br += *(bitmap_pix + 2);
-    M5_LOGI("%d : %d / %d", x, br, th);
+    // M5_LOGI("%d : %d / %d", x, br, th);
     if ((th - br) * EdgeMode < 0)
     {
       return (uint16_t)x;
@@ -467,6 +367,18 @@ uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs
   }
 
   return (uint16_t)x;
+}
+
+void HTTPLoop(void *arg)
+{
+
+  while (true)
+  {
+    HTTP_UI();
+    Ethernet.maintain();
+    delay(10);
+  }
+  vTaskDelete(NULL);
 }
 
 void DataSaveLoop(void *arg)
@@ -483,69 +395,77 @@ void DataSaveLoop(void *arg)
   {
     if ((Ethernet.linkStatus() != LinkON))
     {
+      M5_LOGW("Ethernet link is not on.");
       delay(10000);
       continue;
     }
 
     if (!ftp.isConnected())
+    {
+      M5_LOGW("ftp is not Connected.");
       ftp.OpenConnection();
-
-    JpegItem jpegItem;
-    u_int16_t saveInterval = storeData.ftpImageSaveInterval;
-    while (xQueueReceive(xQueueJpeg_Store, &jpegItem, 0))
+      delay(1000);
+    }
+    else
     {
-      if (jpegItem.epoc < lastCheckEpoc_Jpeg)
-        lastCheckEpoc_Jpeg = 0;
-      if (jpegItem.epoc - lastCheckEpoc_Jpeg > 1)
-        M5_LOGW("JpegEpocDeltaOver 1:");
-      lastCheckEpoc_Jpeg = jpegItem.epoc;
-
-      if (DataSave_Trigger(jpegItem.epoc, saveInterval, nextSaveEpoc_Jpeg))
+      JpegItem jpegItem;
+      u_int16_t saveInterval = storeData.ftpImageSaveInterval;
+      while (xQueueReceive(xQueueJpeg_Store, &jpegItem, 0))
       {
-        M5_LOGI("Jpeg %u", saveInterval);
-        nextSaveEpoc_Jpeg = jpegItem.epoc + saveInterval;
-        String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
-        ftp.MakeDirRecursive(directoryPath);
-        String filePath = directoryPath + "/" + createFilenameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
-        ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
+        if (jpegItem.epoc < lastCheckEpoc_Jpeg)
+          lastCheckEpoc_Jpeg = 0;
+        if (jpegItem.epoc - lastCheckEpoc_Jpeg > 1)
+          M5_LOGW("JpegEpocDeltaOver 1:");
+        lastCheckEpoc_Jpeg = jpegItem.epoc;
+
+        if (DataSave_Trigger(jpegItem.epoc, saveInterval, nextSaveEpoc_Jpeg))
+        {
+          M5_LOGI("Jpeg %u", saveInterval);
+          nextSaveEpoc_Jpeg = jpegItem.epoc + saveInterval;
+          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
+          ftp.MakeDirRecursive(directoryPath);
+          String filePath = directoryPath + "/" + createFilenameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
+          ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
+        }
+        free(jpegItem.buf);
       }
-      free(jpegItem.buf);
+
+      EdgeItem edgeItem;
+      saveInterval = storeData.ftpEdgeSaveInterval;
+      while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
+      {
+        lastCheckEpoc_Edge = edgeItem.epoc;
+        if (DataSave_Trigger(edgeItem.epoc, saveInterval, nextSaveEpoc_Edge))
+        {
+          M5_LOGI("edge %u", saveInterval);
+          nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
+          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
+          ftp.MakeDirRecursive(directoryPath);
+          String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
+          String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
+          ftp.AppendTextLine(filePath + ".csv", testLine);
+        }
+      }
+
+      ProfItem profItem;
+      saveInterval = storeData.ftpProfileSaveInterval;
+      while (xQueueReceive(xQueueProf_Store, &profItem, 0))
+      {
+        lastCheckEpoc_Prof = profItem.epoc;
+        if (DataSave_Trigger(profItem.epoc, saveInterval, nextSaveEpoc_Prof))
+        {
+          M5_LOGI("prof %u", saveInterval);
+          nextSaveEpoc_Prof = profItem.epoc + saveInterval;
+          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
+          ftp.MakeDirRecursive(directoryPath);
+          String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
+          String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
+          ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
+        }
+        free(profItem.buf);
+      }
     }
 
-    EdgeItem edgeItem;
-    saveInterval = storeData.ftpEdgeSaveInterval;
-    while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
-    {
-      lastCheckEpoc_Edge = edgeItem.epoc;
-      if (DataSave_Trigger(edgeItem.epoc, saveInterval, nextSaveEpoc_Edge))
-      {
-        M5_LOGI("edge %u", saveInterval);
-        nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
-        String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
-        ftp.MakeDirRecursive(directoryPath);
-        String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
-        String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
-        ftp.AppendTextLine(filePath + ".csv", testLine);
-      }
-    }
-
-    ProfItem profItem;
-    saveInterval = storeData.ftpProfileSaveInterval;
-    while (xQueueReceive(xQueueProf_Store, &profItem, 0))
-    {
-      lastCheckEpoc_Prof = profItem.epoc;
-      if (DataSave_Trigger(profItem.epoc, saveInterval, nextSaveEpoc_Prof))
-      {
-        M5_LOGI("prof %u", saveInterval);
-        nextSaveEpoc_Prof = profItem.epoc + saveInterval;
-        String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
-        ftp.MakeDirRecursive(directoryPath);
-        String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
-        String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
-        ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
-      }
-      free(profItem.buf);
-    }
     delay(100);
   }
 

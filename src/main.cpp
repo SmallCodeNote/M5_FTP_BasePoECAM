@@ -272,13 +272,15 @@ void setup()
   unit_flash_init();
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
+  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
 
+  xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 4096, NULL, 0, NULL, 0);
+
+  xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 1);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 0, NULL, 1);
-  // xTaskCreatePinnedToCore(SensorShotLoop, "SensorShotLoop", 4096, NULL, 1, NULL, 1);
-  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 1);
-  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 1);
 
   if (M5.getDisplayCount() > 0)
   {
@@ -288,18 +290,9 @@ void setup()
   }
 }
 
-int loopCount = 1000;
 void loop()
 {
-  delay(100);
-
-  if (loopCount >= 100)
-  {
-    M5_LOGI("Call HTTPUI();");
-    loopCount = 0;
-  }
-  loopCount++;
-  HTTP_UI();
+  delay(1000);
 
   if (M5.getDisplayCount() > 0)
   {
@@ -330,7 +323,7 @@ void loop()
       M5.Display.println("time information can not use now.     ");
     }
   }
-  Ethernet.maintain();
+  //Ethernet.maintain();
 }
 
 void unit_flash_set_brightness(uint8_t brightness)
