@@ -163,7 +163,7 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
   ProfItem profItem;
   EdgeItem edgeItem;
   M5_LOGD("");
-  if (xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY) == pdPASS)
+  if (xQueueProf_Last != NULL && xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY) == pdPASS)
   {
 
     M5_LOGD("");
@@ -272,7 +272,7 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
 {
   M5_LOGI("");
   JpegItem jpegItem;
-  if (xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
+  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
   {
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: image/jpeg");
@@ -299,7 +299,7 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
     free(jpegItem.buf);
     M5_LOGI("");
   }
-  client.stop();
+  // client.stop();
 }
 
 void HTTP_UI_JPEG_STORE_Task(void *arg)
@@ -386,7 +386,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
   M5_LOGI("");
   JpegItem jpegItem;
-  if (xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
+  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
   {
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: image/jpeg");
@@ -413,7 +413,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
     free(jpegItem.buf);
     M5_LOGI("");
   }
-  client.stop();
+  // client.stop();
 }
 
 uint8_t *HTTP_UI_JPEG_flashTestJPEG;
@@ -444,7 +444,7 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
     to_sends -= now_sends;
   }
 
-  client.stop();
+  // client.stop();
   M5_LOGI("");
 }
 
@@ -496,7 +496,7 @@ void HTTP_UI_STREAM_JPEG(EthernetClient client)
 client_exit:
   PoECAM.Camera.free();
   PoECAM.setLed(0);
-  client.stop();
+  // client.stop();
   M5_LOGI("Image stream end\r\n");
 }
 
@@ -1456,9 +1456,19 @@ void sendPage(EthernetClient client, String page)
 
 void HTTP_UI()
 {
+
   EthernetClient client = HttpUIServer.available();
+
   if (client)
   {
+    unsigned long millis0 = millis();
+    unsigned long millis1 = millis0;
+
+    unsigned long bmillis1 = millis0;
+    unsigned long bmillis2 = millis0;
+    unsigned long bmillis3 = millis0;
+    unsigned long bmillis4 = millis0;
+
     M5_LOGV("new client");
     boolean currentLineIsBlank = true;
     String currentLine = "";
@@ -1473,35 +1483,59 @@ void HTTP_UI()
       {
         char c = client.read();
         M5.Log.printf("%c", c); // Serial.write(c);
+
+        millis0 = millis();
+
+        if (c == '\n')
+        {
+          currentLineIsBlank = true, currentLine = "";
+        }
+        else if (c != '\r')
+        {
+          currentLineIsBlank = false, currentLine += c;
+        }
+
+        bmillis1 = millis() - millis0;
+
         if (c == '\n' && currentLineIsBlank)
         {
-          M5_LOGI("%s", currentLine);
+          M5_LOGV("%s", page.c_str());
           if (getRequest)
             sendPage(client, page);
           else
             HTTP_UI_PAGE_notFound(client);
           break;
         }
-        if (c == '\n')
-          currentLineIsBlank = true, currentLine = "";
-        else if (c != '\r')
-          currentLineIsBlank = false, currentLine += c;
 
-        for (size_t i = 0; i < numPages; i++)
+        bmillis2 = millis() - millis0;
+
+        if (currentLine.length() > 5 && (currentLine.startsWith("GET /") || currentLine.startsWith("POST /")))
         {
-          String pageName = String(pageHandlers[i].page);
-          String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
-          if (currentLine.endsWith(CheckLine.c_str()))
+          for (size_t i = 0; i < numPages; i++)
           {
-            page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
-            M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
-            getRequest = true;
-            break;
+            String pageName = String(pageHandlers[i].page);
+            String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
+            if (currentLine.endsWith(CheckLine.c_str()))
+            {
+              //page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
+              page =(pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
+              M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
+              getRequest = true;
+              break;
+            }
           }
         }
+        bmillis3 = millis() - millis0;
+
+        if (millis0 - millis1 >= 500)
+        {
+          M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
+        }
+        millis1 = millis0;
       }
+
+      delay(1);
     }
-    delay(1);
     client.stop();
     M5_LOGV("client disconnected");
   }
