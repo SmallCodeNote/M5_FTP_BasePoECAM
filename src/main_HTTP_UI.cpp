@@ -62,14 +62,19 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
 {
   ProfItem profItem;
   EdgeItem edgeItem;
+  int maxWait = storeData.imageBufferingEpochInterval * 1000;
+  unsigned long startMillis = millis();
+  // bool sw1 = xQueueProf_Last != NULL && uxQueueMessagesWaiting(xQueueProf_Last) > 0;
+  // bool sw2 = xQueueEdge_Last != NULL && uxQueueMessagesWaiting(xQueueEdge_Last) > 0;
 
-  bool sw1 = xQueueProf_Last != NULL && uxQueueMessagesWaiting(xQueueProf_Last) > 0;
-  bool sw2 = xQueueEdge_Last != NULL && uxQueueMessagesWaiting(xQueueEdge_Last) > 0;
+  bool sw1 = xQueueReceive(xQueueProf_Last, &profItem, maxWait) == pdPASS;
+  maxWait = maxWait - (millis() - startMillis);
+  maxWait = maxWait < 0 ? 0 : maxWait;
+
+  bool sw2 = xQueuePeek(xQueueEdge_Last, &edgeItem, maxWait) == pdPASS;
 
   if (sw1 && sw2)
   {
-    xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY);
-    xQueuePeek(xQueueEdge_Last, &edgeItem, portMAX_DELAY);
 
     HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
     httpClient.print("{");
