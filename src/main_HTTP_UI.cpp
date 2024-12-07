@@ -7,58 +7,58 @@
 #include "main_HTTP_UI_ChartJS.h"
 #include "main_EEPROM_handler.h"
 
-EthernetServer HttpUIServer(80);
+EthernetServer HttpUIServer = EthernetServer(80);
 String SensorValueString = "";
 
-void HTTP_UI_PART_ResponceHeader(EthernetClient client, String Content_Type)
+void HTTP_UI_PART_ResponceHeader(EthernetClient httpClient, String Content_Type)
 {
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: " + Content_Type);
-  client.println("Connection: close");
-  client.println();
+  httpClient.println("HTTP/1.1 200 OK");
+  httpClient.println("Content-Type: " + Content_Type);
+  httpClient.println("Connection: close");
+  httpClient.println();
 }
 
-void HTTP_UI_PART_HTMLHeader(EthernetClient client)
+void HTTP_UI_PART_HTMLHeader(EthernetClient httpClient)
 {
-  client.println("<!DOCTYPE HTML>");
-  client.println("<html>");
-  client.println("<body>");
+  httpClient.println("<!DOCTYPE HTML>");
+  httpClient.println("<html>");
+  httpClient.println("<body>");
 }
 
-void HTTP_UI_PART_HTMLFooter(EthernetClient client)
+void HTTP_UI_PART_HTMLFooter(EthernetClient httpClient)
 {
-  client.println("</body>");
-  client.println("</html>");
+  httpClient.println("</body>");
+  httpClient.println("</html>");
 }
 
-void HTTP_UI_JSON_sensorValueNow(EthernetClient client)
+void HTTP_UI_JSON_sensorValueNow(EthernetClient httpClient)
 {
   EdgeItem edgeItem;
 
-  HTTP_UI_PART_ResponceHeader(client, "application/json");
-  client.print("{");
-  client.print("\"distance\":");
+  HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
+  httpClient.print("{");
+  httpClient.print("\"distance\":");
   if (xQueueEdge_Last != NULL && xQueuePeek(xQueueEdge_Last, &edgeItem, 0))
   {
-    client.print(String(edgeItem.edgeX));
+    httpClient.print(String(edgeItem.edgeX));
   }
   else
   {
-    client.print(String(-1));
+    httpClient.print(String(-1));
   }
-  client.println("}");
+  httpClient.println("}");
 }
 
-void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
+void HTTP_UI_JSON_unitTimeNow(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "application/json");
-  client.print("{");
-  client.print("\"unitTime\":");
-  client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
-  client.println("}");
+  HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
+  httpClient.print("{");
+  httpClient.print("\"unitTime\":");
+  httpClient.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
+  httpClient.println("}");
 }
 
-void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
+void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
 {
   ProfItem profItem;
   EdgeItem edgeItem;
@@ -71,41 +71,41 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
     xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY);
     xQueuePeek(xQueueEdge_Last, &edgeItem, portMAX_DELAY);
 
-    HTTP_UI_PART_ResponceHeader(client, "application/json");
-    client.print("{");
-    client.print("\"unitTime\":");
-    client.printf("\"%s\"", NtpClient.convertTimeEpochToString(profItem.epoc).c_str());
-    client.println(",");
-    client.print("\"CameraLineValue\":[");
-    client.printf("%u", profItem.buf[0]);
+    HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
+    httpClient.print("{");
+    httpClient.print("\"unitTime\":");
+    httpClient.printf("\"%s\"", NtpClient.convertTimeEpochToString(profItem.epoc).c_str());
+    httpClient.println(",");
+    httpClient.print("\"CameraLineValue\":[");
+    httpClient.printf("%u", profItem.buf[0]);
 
     for (size_t i = 1; i < profItem.len; i++)
     {
-      client.printf(",%u", profItem.buf[i]);
+      httpClient.printf(",%u", profItem.buf[i]);
     }
 
-    client.println("]");
-    client.println(",");
+    httpClient.println("]");
+    httpClient.println(",");
 
-    client.print("\"edgePoint\":");
-    client.printf("%u", edgeItem.edgeX);
-    client.println("}");
+    httpClient.print("\"edgePoint\":");
+    httpClient.printf("%u", edgeItem.edgeX);
+    httpClient.println("}");
 
     free(profItem.buf);
   }
   else
   {
-    HTTP_UI_PART_ResponceHeader(client, "application/json");
-    client.print("{");
-    client.print("\"unitTime\":");
-    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
-    client.println(",");
-    client.print("\"CameraLineValue\":[0]");
-    client.println(",");
+    HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
+    httpClient.print("{");
+    httpClient.print("\"unitTime\":");
+    httpClient.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
+    httpClient.println(",");
+    httpClient.print("\"CameraLineValue\":[0]");
+    httpClient.println(",");
 
-    client.print("\"edgePoint\":");
-    client.print("0");
-    client.println("}");
+    httpClient.print("\"edgePoint\":");
+    httpClient.print("0");
+    httpClient.println("}");
   }
 }
 
@@ -226,17 +226,17 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition_verticalSearch(uint8_t *bitmap_
   return (uint16_t)y;
 }
 /*
-void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
+void HTTP_UI_JPEG_cameraLineNow(EthernetClient httpClient)
 {
   M5_LOGI("");
   JpegItem jpegItem;
   if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, 0) == pdPASS)
   {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
+    httpClient.println("HTTP/1.1 200 OK");
+    httpClient.println("Content-Type: image/jpeg");
+    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    httpClient.println("Access-Control-Allow-Origin: *");
+    httpClient.println();
 
     int32_t to_sends = jpegItem.len;
     uint8_t *out_buf = jpegItem.buf;
@@ -247,7 +247,7 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
     while (to_sends > 0)
     {
       now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
+      if (httpClient.write(out_buf, now_sends) == 0)
       {
         break;
       }
@@ -259,13 +259,13 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
   }
   else
   {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
+    httpClient.println("HTTP/1.1 200 OK");
+    httpClient.println("Content-Type: image/jpeg");
+    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    httpClient.println("Access-Control-Allow-Origin: *");
+    httpClient.println();
     }
-  // client.stop();
+  // httpClient.stop();
 }
 */
 void HTTP_UI_JPEG_STORE_Task(void *arg)
@@ -302,17 +302,17 @@ void HTTP_UI_JPEG_STORE_Task(void *arg)
   M5_LOGI("");
 }
 
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
 {
   M5_LOGI("");
   JpegItem jpegItem;
   if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, 0) == pdPASS)
   {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
+    httpClient.println("HTTP/1.1 200 OK");
+    httpClient.println("Content-Type: image/jpeg");
+    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    httpClient.println("Access-Control-Allow-Origin: *");
+    httpClient.println();
 
     int32_t to_sends = jpegItem.len;
     uint8_t *out_buf = jpegItem.buf;
@@ -323,7 +323,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
     while (to_sends > 0)
     {
       now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
+      if (httpClient.write(out_buf, now_sends) == 0)
       {
         break;
       }
@@ -335,26 +335,26 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
   }
   else
   {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
+    httpClient.println("HTTP/1.1 200 OK");
+    httpClient.println("Content-Type: image/jpeg");
+    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    httpClient.println("Access-Control-Allow-Origin: *");
+    httpClient.println();
   }
-  // client.stop();
+  // httpClient.stop();
 }
 /*
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
 {
   M5_LOGI("");
   JpegItem jpegItem;
   if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
   {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
+    httpClient.println("HTTP/1.1 200 OK");
+    httpClient.println("Content-Type: image/jpeg");
+    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    httpClient.println("Access-Control-Allow-Origin: *");
+    httpClient.println();
 
     int32_t to_sends = jpegItem.len;
     uint8_t *out_buf = jpegItem.buf;
@@ -365,7 +365,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
     while (to_sends > 0)
     {
       now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
+      if (httpClient.write(out_buf, now_sends) == 0)
       {
         break;
       }
@@ -375,21 +375,21 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
     free(jpegItem.buf);
     M5_LOGI("");
   }
-  // client.stop();
+  // httpClient.stop();
 }
 */
 /*
 uint8_t *HTTP_UI_JPEG_flashTestJPEG;
 int32_t HTTP_UI_JPEG_flashTestJPEG_len;
-void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
+void HTTP_UI_JPEG_flashTestImage(EthernetClient httpClient)
 {
   M5_LOGI("");
 
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: image/jpeg");
-  client.println("Content-Disposition: inline; filename=flashTestImage.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
+  httpClient.println("HTTP/1.1 200 OK");
+  httpClient.println("Content-Type: image/jpeg");
+  httpClient.println("Content-Disposition: inline; filename=flashTestImage.jpg");
+  httpClient.println("Access-Control-Allow-Origin: *");
+  httpClient.println();
 
   uint32_t packet_len = 1 * 1024;
   int32_t now_sends = 0;
@@ -399,7 +399,7 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
   while (to_sends > 0)
   {
     now_sends = to_sends > packet_len ? packet_len : to_sends;
-    if (client.write(out_buf, now_sends) == 0)
+    if (httpClient.write(out_buf, now_sends) == 0)
     {
       break;
     }
@@ -407,20 +407,20 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
     to_sends -= now_sends;
   }
 
-  // client.stop();
+  // httpClient.stop();
   M5_LOGI("");
 }
 */
 
-void HTTP_UI_STREAM_JPEG(EthernetClient client)
+void HTTP_UI_STREAM_JPEG(EthernetClient httpClient)
 {
   M5_LOGI("Image stream start");
 
-  client.println("HTTP/1.1 200 OK");
-  client.printf("Content-Type: %s\r\n", _STREAM_CONTENT_TYPE);
-  client.println("Content-Disposition: inline; filename=capture.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
+  httpClient.println("HTTP/1.1 200 OK");
+  httpClient.printf("Content-Type: %s\r\n", _STREAM_CONTENT_TYPE);
+  httpClient.println("Content-Disposition: inline; filename=capture.jpg");
+  httpClient.println("Access-Control-Allow-Origin: *");
+  httpClient.println();
   static int64_t last_frame = 0;
   if (!last_frame)
   {
@@ -431,8 +431,8 @@ void HTTP_UI_STREAM_JPEG(EthernetClient client)
     if (PoECAM.Camera.get())
     {
       PoECAM.setLed(true);
-      client.print(_STREAM_BOUNDARY);
-      client.printf(_STREAM_PART, PoECAM.Camera.fb);
+      httpClient.print(_STREAM_BOUNDARY);
+      httpClient.printf(_STREAM_PART, PoECAM.Camera.fb);
       int32_t to_sends = PoECAM.Camera.fb->len;
       int32_t now_sends = 0;
       uint8_t *out_buf = PoECAM.Camera.fb->buf;
@@ -440,7 +440,7 @@ void HTTP_UI_STREAM_JPEG(EthernetClient client)
       while (to_sends > 0)
       {
         now_sends = to_sends > packet_len ? packet_len : to_sends;
-        if (client.write(out_buf, now_sends) == 0)
+        if (httpClient.write(out_buf, now_sends) == 0)
         {
           goto client_exit;
         }
@@ -460,165 +460,165 @@ void HTTP_UI_STREAM_JPEG(EthernetClient client)
 client_exit:
   PoECAM.Camera.free();
   PoECAM.setLed(0);
-  // client.stop();
+  // httpClient.stop();
   M5_LOGI("Image stream end\r\n");
 }
 
-void HTTP_UI_PAGE_top(EthernetClient client)
+void HTTP_UI_PAGE_top(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<a href=\"/capture.jpg\">Stream</a><br>");
-  client.println("<a href=\"/view.html\">View Page</a><br>");
-  client.println("<a href=\"/chart.html\">Chart Page</a><br>");
-  client.println("<a href=\"/cameraLineView.html\">CameraLineView Page</a><br>");
-  client.println("<a href=\"/unitTime.html\">Unit Time</a><br>");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<a href=\"/capture.jpg\">Stream</a><br>");
+  httpClient.println("<a href=\"/view.html\">View Page</a><br>");
+  httpClient.println("<a href=\"/chart.html\">Chart Page</a><br>");
+  httpClient.println("<a href=\"/cameraLineView.html\">CameraLineView Page</a><br>");
+  httpClient.println("<a href=\"/unitTime.html\">Unit Time</a><br>");
 
-  client.println("<br>");
-  client.println("<hr>");
-  client.println("<br>");
+  httpClient.println("<br>");
+  httpClient.println("<hr>");
+  httpClient.println("<br>");
 
-  client.println("<a href=\"/configParam.html\">Config Parameter Page</a><br>");
-  client.println("<a href=\"/configCamera.html\">Config Camera Page</a><br>");
-  client.println("<a href=\"/configChart.html\">Config Chart Page</a><br>");
-  client.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
+  httpClient.println("<a href=\"/configParam.html\">Config Parameter Page</a><br>");
+  httpClient.println("<a href=\"/configCamera.html\">Config Camera Page</a><br>");
+  httpClient.println("<a href=\"/configChart.html\">Config Chart Page</a><br>");
+  httpClient.println("<a href=\"/configTime.html\">Config Time Page</a><br>");
 
-  client.println("<a href=\"/flashSwitch.html\">flashSwitch Page</a><br>");
+  httpClient.println("<a href=\"/flashSwitch.html\">flashSwitch Page</a><br>");
 
-  client.println("<br>");
-  client.println("<hr>");
-  client.println("<br>");
+  httpClient.println("<br>");
+  httpClient.println("<hr>");
+  httpClient.println("<br>");
 
-  client.println("<a href=\"/sensorValueNow.json\">sensorValueNow.json</a><br>");
-  client.println("<a href=\"/unitTimeNow.json\">unitTimeNow.json</a><br>");
-  client.println("<a href=\"/cameraLineNow.json\">cameraLineNow.json</a><br>");
-  client.println("<a href=\"/sensorImageNow.jpg\">sensorImageNow.jpg</a><br>");
+  httpClient.println("<a href=\"/sensorValueNow.json\">sensorValueNow.json</a><br>");
+  httpClient.println("<a href=\"/unitTimeNow.json\">unitTimeNow.json</a><br>");
+  httpClient.println("<a href=\"/cameraLineNow.json\">cameraLineNow.json</a><br>");
+  httpClient.println("<a href=\"/sensorImageNow.jpg\">sensorImageNow.jpg</a><br>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_view(EthernetClient client)
+void HTTP_UI_PAGE_view(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<ul id=\"sensorData\">");
-  client.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"sensorData\">");
+  httpClient.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
+  httpClient.println("</ul>");
 
-  client.println("<img id=\"sensorImage\" src=\"/sensorImageNow.jpg\" alt=\"Sensor Image\" />");
+  httpClient.println("<img id=\"sensorImage\" src=\"/sensorImageNow.jpg\" alt=\"Sensor Image\" />");
 
-  client.println("<script>");
+  httpClient.println("<script>");
 
-  client.println("function refreshImage() {");
-  client.println("  var img = document.getElementById('sensorImage');");
-  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
-  client.println("}");
+  httpClient.println("function refreshImage() {");
+  httpClient.println("  var img = document.getElementById('sensorImage');");
+  httpClient.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  httpClient.println("}");
 
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('distance').innerText = data.distance;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
+  httpClient.println("function fetchData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      document.getElementById('distance').innerText = data.distance;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/sensorValueNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
 
-  client.printf("setInterval(refreshImage, %u);", storeData.chartUpdateInterval);
-  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
-  client.println("refreshImage();");
-  client.println("fetchData();");
-  client.println("</script>");
+  httpClient.printf("setInterval(refreshImage, %u);", storeData.chartUpdateInterval);
+  httpClient.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
+  httpClient.println("refreshImage();");
+  httpClient.println("fetchData();");
+  httpClient.println("</script>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
+void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>Camera Line View</h1>");
+  httpClient.println("<h1>Camera Line View</h1>");
 
-  client.println("<ul id=\"valueLabel\">");
-  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  client.println("<li>edgePoint: <span id=\"edgePoint\"></span></li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"valueLabel\">");
+  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  httpClient.println("<li>edgePoint: <span id=\"edgePoint\"></span></li>");
+  httpClient.println("</ul>");
 
-  client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
+  httpClient.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
 
-  client.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
+  httpClient.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
 
-  client.println("<script src=\"/chart.js\"></script>");
+  httpClient.println("<script src=\"/chart.js\"></script>");
 
-  client.println("<script>");
-  client.println("var chart = null;");
+  httpClient.println("<script>");
+  httpClient.println("var chart = null;");
 
-  client.println("function fetchCameraLineData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      updateChart(data.CameraLineValue);");
-  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  client.println("      document.getElementById('edgePoint').innerText = data.edgePoint;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/cameraLineNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
+  httpClient.println("function fetchCameraLineData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      updateChart(data.CameraLineValue);");
+  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  httpClient.println("      document.getElementById('edgePoint').innerText = data.edgePoint;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/cameraLineNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
 
-  client.println("function updateChart(data) {");
-  client.println("  var ctx = document.getElementById('cameraLineChart').getContext('2d');");
+  httpClient.println("function updateChart(data) {");
+  httpClient.println("  var ctx = document.getElementById('cameraLineChart').getContext('2d');");
 
-  client.println("  if (chart) {");
-  client.println("    chart.destroy();");
-  client.println("  }");
+  httpClient.println("  if (chart) {");
+  httpClient.println("    chart.destroy();");
+  httpClient.println("  }");
 
-  client.println("  chart = new Chart(ctx, {");
-  client.println("    type: 'line',");
-  client.println("    data: {");
-  client.println("      labels: data.map((_, index) => index),");
-  client.println("      datasets: [{");
-  client.println("        label: 'Camera Line Data',");
-  client.println("        data: data,");
-  client.println("        borderColor: 'rgba(75, 192, 192, 1)',");
-  client.println("        borderWidth: 1,");
-  client.println("        fill: false");
-  client.println("      }]");
-  client.println("    },");
-  client.println("    options: {");
-  client.println("      animation: false,");
-  client.println("      scales: {");
-  client.println("        x: {");
-  client.println("          type: 'linear',");
-  client.println("          position: 'bottom'");
-  client.println("        },");
-  client.println("        y: {");
-  client.println("          type: 'linear',");
-  client.println("          position: 'right'");
-  //  client.println("          display: false");
-  client.println("        }");
-  client.println("      },");
-  client.println("      plugins: {");
-  client.println("        legend: {");
-  client.println("          display: false");
-  client.println("        }");
-  client.println("      }");
-  client.println("    }");
-  client.println("  });");
-  client.println("}");
+  httpClient.println("  chart = new Chart(ctx, {");
+  httpClient.println("    type: 'line',");
+  httpClient.println("    data: {");
+  httpClient.println("      labels: data.map((_, index) => index),");
+  httpClient.println("      datasets: [{");
+  httpClient.println("        label: 'Camera Line Data',");
+  httpClient.println("        data: data,");
+  httpClient.println("        borderColor: 'rgba(75, 192, 192, 1)',");
+  httpClient.println("        borderWidth: 1,");
+  httpClient.println("        fill: false");
+  httpClient.println("      }]");
+  httpClient.println("    },");
+  httpClient.println("    options: {");
+  httpClient.println("      animation: false,");
+  httpClient.println("      scales: {");
+  httpClient.println("        x: {");
+  httpClient.println("          type: 'linear',");
+  httpClient.println("          position: 'bottom'");
+  httpClient.println("        },");
+  httpClient.println("        y: {");
+  httpClient.println("          type: 'linear',");
+  httpClient.println("          position: 'right'");
+  //  httpClient.println("          display: false");
+  httpClient.println("        }");
+  httpClient.println("      },");
+  httpClient.println("      plugins: {");
+  httpClient.println("        legend: {");
+  httpClient.println("          display: false");
+  httpClient.println("        }");
+  httpClient.println("      }");
+  httpClient.println("    }");
+  httpClient.println("  });");
+  httpClient.println("}");
 
   uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
   uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
@@ -626,132 +626,132 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   uint32_t xw = (uint32_t)((iWidth * storeData.pixLineRange) / 100);
   uint32_t y1 = (uint32_t)((iHeight) / 2) - 1;
 
-  client.println("function refreshImage() {");
-  client.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
-  client.println("  var img = new Image();");
-  client.println("  img.onload = function() {");
-  client.println("    var canvas = document.getElementById('cameraImage');");
-  client.println("    canvas.height = img.height * (canvas.width / img.width);");
-  client.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
-  client.println("    ctx.strokeStyle = 'red';");
-  client.println("    ctx.lineWidth = 1;");
-  client.printf("    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
-  client.println("");
-  client.println("  };");
-  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
-  client.println("}");
+  httpClient.println("function refreshImage() {");
+  httpClient.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
+  httpClient.println("  var img = new Image();");
+  httpClient.println("  img.onload = function() {");
+  httpClient.println("    var canvas = document.getElementById('cameraImage');");
+  httpClient.println("    canvas.height = img.height * (canvas.width / img.width);");
+  httpClient.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
+  httpClient.println("    ctx.strokeStyle = 'red';");
+  httpClient.println("    ctx.lineWidth = 1;");
+  httpClient.printf("    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
+  httpClient.println("");
+  httpClient.println("  };");
+  httpClient.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  httpClient.println("}");
 
-  client.println("function update() {");
-  client.println("  refreshImage();");
-  client.println("  fetchCameraLineData();");
-  client.println("}");
+  httpClient.println("function update() {");
+  httpClient.println("  refreshImage();");
+  httpClient.println("  fetchCameraLineData();");
+  httpClient.println("}");
 
-  client.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
-  client.println("update();");
-  client.println("</script>");
+  httpClient.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
+  httpClient.println("update();");
+  httpClient.println("</script>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_chart(EthernetClient client)
+void HTTP_UI_PAGE_chart(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<ul id=\"sensorData\">");
-  client.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"sensorData\">");
+  httpClient.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
+  httpClient.println("</ul>");
 
-  client.println("<canvas id=\"distanceChart\" width=\"400\" height=\"200\"></canvas>");
+  httpClient.println("<canvas id=\"distanceChart\" width=\"400\" height=\"200\"></canvas>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  client.println("<script src=\"/chart.js\"></script>");
-  client.println("<script>");
-  client.printf("var distanceData = Array(%u).fill(0);\n", storeData.chartShowPointCount);
-  client.println("var myChart = null;");
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('distance').innerText = data.distance;");
-  client.println("      distanceData.push(data.distance);");
-  client.printf("      if (distanceData.length > %u) { distanceData.shift(); }", storeData.chartShowPointCount);
-  client.println("      updateChart();");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
+  httpClient.println("<script src=\"/chart.js\"></script>");
+  httpClient.println("<script>");
+  httpClient.printf("var distanceData = Array(%u).fill(0);\n", storeData.chartShowPointCount);
+  httpClient.println("var myChart = null;");
+  httpClient.println("function fetchData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      document.getElementById('distance').innerText = data.distance;");
+  httpClient.println("      distanceData.push(data.distance);");
+  httpClient.printf("      if (distanceData.length > %u) { distanceData.shift(); }", storeData.chartShowPointCount);
+  httpClient.println("      updateChart();");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/sensorValueNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
 
-  client.println("function updateChart() {");
-  client.println("  var ctx = document.getElementById('distanceChart').getContext('2d');");
+  httpClient.println("function updateChart() {");
+  httpClient.println("  var ctx = document.getElementById('distanceChart').getContext('2d');");
 
-  client.println("  if (myChart) {");
-  client.println("    myChart.destroy();");
-  client.println("  }");
+  httpClient.println("  if (myChart) {");
+  httpClient.println("    myChart.destroy();");
+  httpClient.println("  }");
 
-  client.println("  myChart = new Chart(ctx, {");
-  client.println("    type: 'line',");
-  client.println("    data: {");
-  client.println("      labels: Array.from({length: distanceData.length}, (_, i) => i + 1),");
-  client.println("      datasets: [{");
-  client.println("        label: 'Distance',");
-  client.println("        data: distanceData,");
-  client.println("        borderColor: 'rgba(75, 192, 192, 1)',");
-  client.println("        borderWidth: 1");
-  client.println("      }]");
-  client.println("    },");
-  client.println("    options: {");
-  client.println("      animation: false,");
-  client.println("      scales: {");
-  client.println("        x: { beginAtZero: true },");
-  client.println("        y: { beginAtZero: true }");
-  client.println("      }");
-  client.println("    }");
-  client.println("  });");
-  client.println("}");
+  httpClient.println("  myChart = new Chart(ctx, {");
+  httpClient.println("    type: 'line',");
+  httpClient.println("    data: {");
+  httpClient.println("      labels: Array.from({length: distanceData.length}, (_, i) => i + 1),");
+  httpClient.println("      datasets: [{");
+  httpClient.println("        label: 'Distance',");
+  httpClient.println("        data: distanceData,");
+  httpClient.println("        borderColor: 'rgba(75, 192, 192, 1)',");
+  httpClient.println("        borderWidth: 1");
+  httpClient.println("      }]");
+  httpClient.println("    },");
+  httpClient.println("    options: {");
+  httpClient.println("      animation: false,");
+  httpClient.println("      scales: {");
+  httpClient.println("        x: { beginAtZero: true },");
+  httpClient.println("        y: { beginAtZero: true }");
+  httpClient.println("      }");
+  httpClient.println("    }");
+  httpClient.println("  });");
+  httpClient.println("}");
 
-  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
-  client.println("fetchData();");
+  httpClient.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
+  httpClient.println("fetchData();");
 
-  client.println("</script>");
+  httpClient.println("</script>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_notFound(EthernetClient client)
+void HTTP_UI_PAGE_notFound(EthernetClient httpClient)
 {
-  client.println("HTTP/1.1 404 Not Found");
-  client.println("Content-Type: text/html");
-  client.println("Connection: close");
-  client.println();
+  httpClient.println("HTTP/1.1 404 Not Found");
+  httpClient.println("Content-Type: text/html");
+  httpClient.println("Connection: close");
+  httpClient.println();
 
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>404 Not Found</h1>");
+  httpClient.println("<h1>404 Not Found</h1>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_configParam(EthernetClient client)
+void HTTP_UI_PAGE_configParam(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<form action=\"/configParamSuccess.html\" method=\"post\">");
-  client.println("<ul>");
+  httpClient.println("<form action=\"/configParamSuccess.html\" method=\"post\">");
+  httpClient.println("<ul>");
 
   String currentLine = "";
   HTML_PUT_LI_WIDEINPUT(deviceName);
@@ -761,7 +761,7 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   HTML_PUT_LI_WIDEINPUT(ftp_user);
   HTML_PUT_LI_WIDEINPUT(ftp_pass);
 
-  HTML_PUT_LI_INPUT(imageBufferingInterval);
+  HTML_PUT_LI_INPUT(imageBufferingEpochInterval);
 
   HTML_PUT_LI_INPUT(ftpImageSaveInterval);
   HTML_PUT_LI_INPUT(ftpEdgeSaveInterval);
@@ -774,25 +774,25 @@ void HTTP_UI_PAGE_configParam(EthernetClient client)
   HTML_PUT_LI_INPUT(flashIntensityMode);
   HTML_PUT_LI_INPUT(flashLength);
 
-  client.println("<li class=\"button\">");
-  client.println("<button type=\"submit\">Save and reboot</button>");
-  client.println("</li>");
-  client.println("</ul>");
-  client.println("</form>");
+  httpClient.println("<li class=\"button\">");
+  httpClient.println("<button type=\"submit\">Save and reboot</button>");
+  httpClient.println("</li>");
+  httpClient.println("</ul>");
+  httpClient.println("</form>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_POST_configParam(EthernetClient client)
+void HTTP_UI_POST_configParam(EthernetClient httpClient)
 {
   String currentLine = "";
   // Load post data
-  while (client.available())
+  while (httpClient.available())
   {
-    char c = client.read();
+    char c = httpClient.read();
     if (c == '\n' && currentLine.length() == 0)
     {
       break;
@@ -807,7 +807,7 @@ void HTTP_UI_POST_configParam(EthernetClient client)
   HTTP_GET_PARAM_FROM_POST(ftp_user);
   HTTP_GET_PARAM_FROM_POST(ftp_pass);
 
-  HTTP_GET_PARAM_FROM_POST(imageBufferingInterval);
+  HTTP_GET_PARAM_FROM_POST(imageBufferingEpochInterval);
 
   HTTP_GET_PARAM_FROM_POST(ftpImageSaveInterval);
   HTTP_GET_PARAM_FROM_POST(ftpEdgeSaveInterval);
@@ -822,30 +822,30 @@ void HTTP_UI_POST_configParam(EthernetClient client)
 
   PutEEPROM();
 
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
-  client.println("SUCCESS PARAMETER UPDATE.");
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
+  httpClient.println("SUCCESS PARAMETER UPDATE.");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 
   xTaskCreatePinnedToCore(TaskRestart, "TaskRestart", 4096, NULL, 0, NULL, 1);
 }
 
-void HTTP_UI_PAGE_configCamera(EthernetClient client)
+void HTTP_UI_PAGE_configCamera(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<form action=\"/configCameraSuccess.html\" method=\"post\">");
-  client.println("<ul>");
+  httpClient.println("<form action=\"/configCameraSuccess.html\" method=\"post\">");
+  httpClient.println("<ul>");
 
   String currentLine = "";
   HTML_PUT_LI_INPUT(flashIntensityMode);
@@ -860,50 +860,50 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
   String optionString = " selected";
   int pixformat_i = pixformat.toInt();
 
-  client.println("<label for=\"pixformat\">Pixformat:</label>");
-  client.println("<select id=\"pixformat\" name=\"pixformat\">");
+  httpClient.println("<label for=\"pixformat\">Pixformat:</label>");
+  httpClient.println("<select id=\"pixformat\" name=\"pixformat\">");
 
-  client.printf("<option value=\"%u\" %s>RGB565</option>", PIXFORMAT_RGB565, pixformat_i == PIXFORMAT_RGB565 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>YUV422</option>", PIXFORMAT_YUV422, pixformat_i == PIXFORMAT_YUV422 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>YUV420</option>", PIXFORMAT_YUV420, pixformat_i == PIXFORMAT_YUV420 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>Grayscale</option>", PIXFORMAT_GRAYSCALE, pixformat_i == PIXFORMAT_GRAYSCALE ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>JPEG</option>", PIXFORMAT_JPEG, pixformat_i == PIXFORMAT_JPEG ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>RGB888</option>", PIXFORMAT_RGB888, pixformat_i == PIXFORMAT_RGB888 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>RAW</option>", PIXFORMAT_RAW, pixformat_i == PIXFORMAT_RAW ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>RGB444</option>", PIXFORMAT_RGB444, pixformat_i == PIXFORMAT_RGB444 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>RGB555</option>", PIXFORMAT_RGB555, pixformat_i == PIXFORMAT_RGB555 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>RGB565</option>", PIXFORMAT_RGB565, pixformat_i == PIXFORMAT_RGB565 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>YUV422</option>", PIXFORMAT_YUV422, pixformat_i == PIXFORMAT_YUV422 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>YUV420</option>", PIXFORMAT_YUV420, pixformat_i == PIXFORMAT_YUV420 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>Grayscale</option>", PIXFORMAT_GRAYSCALE, pixformat_i == PIXFORMAT_GRAYSCALE ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>JPEG</option>", PIXFORMAT_JPEG, pixformat_i == PIXFORMAT_JPEG ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>RGB888</option>", PIXFORMAT_RGB888, pixformat_i == PIXFORMAT_RGB888 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>RAW</option>", PIXFORMAT_RAW, pixformat_i == PIXFORMAT_RAW ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>RGB444</option>", PIXFORMAT_RGB444, pixformat_i == PIXFORMAT_RGB444 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>RGB555</option>", PIXFORMAT_RGB555, pixformat_i == PIXFORMAT_RGB555 ? "selected" : "");
 
-  client.println("</select><br>");
+  httpClient.println("</select><br>");
 
   int framesize_i = framesize.toInt();
 
-  client.println("<label for=\"framesize\">Framesize:</label>");
-  client.println("<select id=\"framesize\" name=\"framesize\">");
+  httpClient.println("<label for=\"framesize\">Framesize:</label>");
+  httpClient.println("<select id=\"framesize\" name=\"framesize\">");
 
-  client.printf("<option value=\"%u\" %s>96x96</option>", FRAMESIZE_96X96, framesize_i == FRAMESIZE_96X96 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>160x120</option>", FRAMESIZE_QQVGA, framesize_i == FRAMESIZE_QQVGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>176x144</option>", FRAMESIZE_QCIF, framesize_i == FRAMESIZE_QCIF ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>240x176</option>", FRAMESIZE_HQVGA, framesize_i == FRAMESIZE_HQVGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>240x240</option>", FRAMESIZE_240X240, framesize_i == FRAMESIZE_240X240 ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>320x240</option>", FRAMESIZE_QVGA, framesize_i == FRAMESIZE_QVGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>400x296</option>", FRAMESIZE_CIF, framesize_i == FRAMESIZE_CIF ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>480x320</option>", FRAMESIZE_HVGA, framesize_i == FRAMESIZE_HVGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>640x480</option>", FRAMESIZE_VGA, framesize_i == FRAMESIZE_VGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>800x600</option>", FRAMESIZE_SVGA, framesize_i == FRAMESIZE_SVGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1024x768</option>", FRAMESIZE_XGA, framesize_i == FRAMESIZE_XGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1280x720</option>", FRAMESIZE_HD, framesize_i == FRAMESIZE_HD ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1280x1024</option>", FRAMESIZE_SXGA, framesize_i == FRAMESIZE_SXGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1600x1200</option>", FRAMESIZE_UXGA, framesize_i == FRAMESIZE_UXGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1920x1080</option>", FRAMESIZE_FHD, framesize_i == FRAMESIZE_FHD ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>720x1280</option>", FRAMESIZE_P_HD, framesize_i == FRAMESIZE_P_HD ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>864x1536</option>", FRAMESIZE_P_3MP, framesize_i == FRAMESIZE_P_3MP ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>2048x1536</option>", FRAMESIZE_QXGA, framesize_i == FRAMESIZE_QXGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>2560x1440</option>", FRAMESIZE_QHD, framesize_i == FRAMESIZE_QHD ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>2560x1600</option>", FRAMESIZE_WQXGA, framesize_i == FRAMESIZE_WQXGA ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>1080x1920</option>", FRAMESIZE_P_FHD, framesize_i == FRAMESIZE_P_FHD ? "selected" : "");
-  client.printf("<option value=\"%u\" %s>2560x1920</option>", FRAMESIZE_QSXGA, framesize_i == FRAMESIZE_QSXGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>96x96</option>", FRAMESIZE_96X96, framesize_i == FRAMESIZE_96X96 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>160x120</option>", FRAMESIZE_QQVGA, framesize_i == FRAMESIZE_QQVGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>176x144</option>", FRAMESIZE_QCIF, framesize_i == FRAMESIZE_QCIF ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>240x176</option>", FRAMESIZE_HQVGA, framesize_i == FRAMESIZE_HQVGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>240x240</option>", FRAMESIZE_240X240, framesize_i == FRAMESIZE_240X240 ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>320x240</option>", FRAMESIZE_QVGA, framesize_i == FRAMESIZE_QVGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>400x296</option>", FRAMESIZE_CIF, framesize_i == FRAMESIZE_CIF ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>480x320</option>", FRAMESIZE_HVGA, framesize_i == FRAMESIZE_HVGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>640x480</option>", FRAMESIZE_VGA, framesize_i == FRAMESIZE_VGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>800x600</option>", FRAMESIZE_SVGA, framesize_i == FRAMESIZE_SVGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1024x768</option>", FRAMESIZE_XGA, framesize_i == FRAMESIZE_XGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1280x720</option>", FRAMESIZE_HD, framesize_i == FRAMESIZE_HD ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1280x1024</option>", FRAMESIZE_SXGA, framesize_i == FRAMESIZE_SXGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1600x1200</option>", FRAMESIZE_UXGA, framesize_i == FRAMESIZE_UXGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1920x1080</option>", FRAMESIZE_FHD, framesize_i == FRAMESIZE_FHD ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>720x1280</option>", FRAMESIZE_P_HD, framesize_i == FRAMESIZE_P_HD ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>864x1536</option>", FRAMESIZE_P_3MP, framesize_i == FRAMESIZE_P_3MP ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>2048x1536</option>", FRAMESIZE_QXGA, framesize_i == FRAMESIZE_QXGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>2560x1440</option>", FRAMESIZE_QHD, framesize_i == FRAMESIZE_QHD ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>2560x1600</option>", FRAMESIZE_WQXGA, framesize_i == FRAMESIZE_WQXGA ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>1080x1920</option>", FRAMESIZE_P_FHD, framesize_i == FRAMESIZE_P_FHD ? "selected" : "");
+  httpClient.printf("<option value=\"%u\" %s>2560x1920</option>", FRAMESIZE_QSXGA, framesize_i == FRAMESIZE_QSXGA ? "selected" : "");
 
-  client.println("</select><br>");
+  httpClient.println("</select><br>");
 
   HTML_PUT_LI_INPUT_WITH_COMMENT(contrast, "-2 - 2");
   HTML_PUT_LI_INPUT_WITH_COMMENT(brightness, "-2 - 2");
@@ -942,25 +942,25 @@ void HTTP_UI_PAGE_configCamera(EthernetClient client)
     HTML_PUT_LI_INPUT(set_xclk);
   */
 
-  client.println("<li class=\"button\">");
-  client.println("<button type=\"submit\">Save</button>");
-  client.println("</li>");
-  client.println("</ul>");
-  client.println("</form>");
+  httpClient.println("<li class=\"button\">");
+  httpClient.println("<button type=\"submit\">Save</button>");
+  httpClient.println("</li>");
+  httpClient.println("</ul>");
+  httpClient.println("</form>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_POST_configCamera(EthernetClient client)
+void HTTP_UI_POST_configCamera(EthernetClient httpClient)
 {
   String currentLine = "";
   // Load post data
-  while (client.available())
+  while (httpClient.available())
   {
-    char c = client.read();
+    char c = httpClient.read();
     if (c == '\n' && currentLine.length() == 0)
     {
       break;
@@ -1019,51 +1019,51 @@ void HTTP_UI_POST_configCamera(EthernetClient client)
   PutEEPROM();
   CameraSensorFullSetupFromStoreData();
 
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
-  client.println("SUCCESS PARAMETER UPDATE.<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-  client.printf("<a href=\"http://%s/configCamera.html\">Return Config Camera Page</a><br>", deviceIP_String.c_str());
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
+  httpClient.println("SUCCESS PARAMETER UPDATE.<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.printf("<a href=\"http://%s/configCamera.html\">Return Config Camera Page</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_configChart(EthernetClient client)
+void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<form action=\"/configChartSuccess.html\" method=\"post\">");
-  client.println("<ul>");
+  httpClient.println("<form action=\"/configChartSuccess.html\" method=\"post\">");
+  httpClient.println("<ul>");
 
   String currentLine = "";
   HTML_PUT_LI_INPUT(chartShowPointCount);
   HTML_PUT_LI_INPUT(chartUpdateInterval);
 
-  client.println("<li class=\"button\">");
-  client.println("<button type=\"submit\">Save</button>");
-  client.println("</li>");
-  client.println("</ul>");
-  client.println("</form>");
+  httpClient.println("<li class=\"button\">");
+  httpClient.println("<button type=\"submit\">Save</button>");
+  httpClient.println("</li>");
+  httpClient.println("</ul>");
+  httpClient.println("</form>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_POST_configChart(EthernetClient client)
+void HTTP_UI_POST_configChart(EthernetClient httpClient)
 {
   String currentLine = "";
   // Load post data
-  while (client.available())
+  while (httpClient.available())
   {
-    char c = client.read();
+    char c = httpClient.read();
     if (c == '\n' && currentLine.length() == 0)
     {
       break;
@@ -1076,114 +1076,114 @@ void HTTP_UI_POST_configChart(EthernetClient client)
 
   PutEEPROM();
 
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
-  client.println("SUCCESS PARAMETER UPDATE.");
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
+  httpClient.println("SUCCESS PARAMETER UPDATE.");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_configTime(EthernetClient client)
+void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<ul id=\"unitTime\">");
-  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"unitTime\">");
+  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  httpClient.println("</ul>");
 
-  client.println("<form action=\"/configTimeSuccess.html\" method=\"post\">");
-  client.println("<ul>");
+  httpClient.println("<form action=\"/configTimeSuccess.html\" method=\"post\">");
+  httpClient.println("<ul>");
 
   String currentLine = "";
   String timeString = "";
   HTML_PUT_LI_WIDEINPUT(timeString);
 
-  client.println("<li class=\"button\">");
-  client.println("<button type=\"submit\">Save</button>");
-  client.println("</li>");
-  client.println("</ul>");
-  client.println("</form>");
+  httpClient.println("<li class=\"button\">");
+  httpClient.println("<button type=\"submit\">Save</button>");
+  httpClient.println("</li>");
+  httpClient.println("</ul>");
+  httpClient.println("</form>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  client.println("<script>");
+  httpClient.println("<script>");
 
-  client.println("function updateTimeString() {");
-  client.println(" document.getElementById('timeString').value = new Date().toLocaleString();");
-  client.println("}");
-  client.println("setInterval(updateTimeString, 1000);");
+  httpClient.println("function updateTimeString() {");
+  httpClient.println(" document.getElementById('timeString').value = new Date().toLocaleString();");
+  httpClient.println("}");
+  httpClient.println("setInterval(updateTimeString, 1000);");
 
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/unitTimeNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
-  client.println("setInterval(fetchData, 1000);");
+  httpClient.println("function fetchData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/unitTimeNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
+  httpClient.println("setInterval(fetchData, 1000);");
 
-  client.println("fetchData();");
-  client.println("updateTimeString();");
-  client.println("</script>");
+  httpClient.println("fetchData();");
+  httpClient.println("updateTimeString();");
+  httpClient.println("</script>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_unitTime(EthernetClient client)
+void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
 {
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<ul id=\"unitTime\">");
-  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"unitTime\">");
+  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  httpClient.println("</ul>");
 
-  client.println("<br>");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br>");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  client.println("<script>");
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/unitTimeNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
-  client.println("setInterval(fetchData, 1000);");
-  client.println("fetchData();");
-  client.println("</script>");
+  httpClient.println("<script>");
+  httpClient.println("function fetchData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/unitTimeNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
+  httpClient.println("setInterval(fetchData, 1000);");
+  httpClient.println("fetchData();");
+  httpClient.println("</script>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
-void HTTP_UI_POST_configTime(EthernetClient client)
+void HTTP_UI_POST_configTime(EthernetClient httpClient)
 {
   String currentLine = "";
   String timeString = "";
   // Load post data
-  while (client.available())
+  while (httpClient.available())
   {
-    char c = client.read();
+    char c = httpClient.read();
     if (c == '\n' && currentLine.length() == 0)
     {
       break;
@@ -1196,35 +1196,35 @@ void HTTP_UI_POST_configTime(EthernetClient client)
   M5_LOGI("posted timeString = %s", timeString.c_str());
   NtpClient.updateTimeFromString(timeString);
 
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
-  client.println("SUCCESS TIME UPDATE.");
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
+  httpClient.println("SUCCESS TIME UPDATE.");
 
-  client.println("<ul id=\"unitTime\">");
-  client.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  client.println("</ul>");
+  httpClient.println("<ul id=\"unitTime\">");
+  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  httpClient.println("</ul>");
 
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  client.println("<script>");
-  client.println("function fetchData() {");
-  client.println("  var xhr = new XMLHttpRequest();");
-  client.println("  xhr.onreadystatechange = function() {");
-  client.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  client.println("      var data = JSON.parse(xhr.responseText);");
-  client.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  client.println("    }");
-  client.println("  };");
-  client.println("  xhr.open('GET', '/unitTimeNow.json', true);");
-  client.println("  xhr.send();");
-  client.println("}");
-  client.println("setInterval(fetchData, 1000);");
-  client.println("fetchData();");
-  client.println("</script>");
+  httpClient.println("<script>");
+  httpClient.println("function fetchData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/unitTimeNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
+  httpClient.println("setInterval(fetchData, 1000);");
+  httpClient.println("fetchData();");
+  httpClient.println("</script>");
 
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
   return;
 }
 
@@ -1253,13 +1253,13 @@ void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
   vTaskDelete(NULL);
 }
 */
-void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
+void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
 {
   String currentLine = "";
   // Load post data
-  while (client.available())
+  while (httpClient.available())
   {
-    char c = client.read();
+    char c = httpClient.read();
     if (c == '\n' && currentLine.length() == 0)
     {
       break;
@@ -1279,7 +1279,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
   {
     flashBrightnessStatus = String(storeData.flashIntensityMode);
   }
-  
+
   if (flashTestLength.length() < 1)
   {
     flashTestLength = String(storeData.flashLength);
@@ -1292,7 +1292,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
 
   storeData.flashIntensityMode = brightness_u;
   storeData.flashLength = flashTestLength_u;
-  delay(storeData.imageBufferingInterval);
+  delay(storeData.imageBufferingEpochInterval);
   /*
     if (flashSwitchStatus == "ON")
     {
@@ -1311,14 +1311,14 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
       M5_LOGW("FlashOFF");
     }
   */
-  HTTP_UI_PART_ResponceHeader(client, "text/html");
-  HTTP_UI_PART_HTMLHeader(client);
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
 
-  client.println("<h1>" + deviceName + "</h1>");
-  client.println("<br />");
+  httpClient.println("<h1>" + deviceName + "</h1>");
+  httpClient.println("<br />");
 
-  client.println("<form action=\"/flashSwitch.html\" method=\"post\">");
-  client.println("<ul>");
+  httpClient.println("<form action=\"/flashSwitch.html\" method=\"post\">");
+  httpClient.println("<ul>");
 
   currentLine = "";
   // flashSwitchStatus = "ON";
@@ -1327,46 +1327,46 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
 
   String optionString = " selected";
 
-  client.println("<label for=\"flashBrightnessStatus\">Brightness:</label>");
-  client.println("<select id=\"flashBrightnessStatus\" name=\"flashBrightnessStatus\">");
+  httpClient.println("<label for=\"flashBrightnessStatus\">Brightness:</label>");
+  httpClient.println("<select id=\"flashBrightnessStatus\" name=\"flashBrightnessStatus\">");
 
-  client.printf("<option value=\"%d\" %s>Flashlight off</option>", 0, brightness_u == 0 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>100%% brightness + 220ms</option>", 1, brightness_u == 1 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>90%% brightness + 220ms</option>", 2, brightness_u == 2 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>80%% brightness + 220ms</option>", 3, brightness_u == 3 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>70%% brightness + 220ms</option>", 4, brightness_u == 4 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>60%% brightness + 220ms</option>", 5, brightness_u == 5 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>50%% brightness + 220ms</option>", 6, brightness_u == 6 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>40%% brightness + 220ms</option>", 7, brightness_u == 7 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>30%% brightness + 220ms</option>", 8, brightness_u == 8 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>100%% brightness + 1.3s</option>", 9, brightness_u == 9 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>90%% brightness + 1.3s</option>", 10, brightness_u == 10 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>80%% brightness + 1.3s</option>", 11, brightness_u == 11 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>70%% brightness + 1.3s</option>", 12, brightness_u == 12 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>60%% brightness + 1.3s</option>", 13, brightness_u == 13 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>50%% brightness + 1.3s</option>", 14, brightness_u == 14 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>40%% brightness + 1.3s</option>", 15, brightness_u == 15 ? "selected" : "");
-  client.printf("<option value=\"%d\" %s>30%% brightness + 1.3s</option>", 16, brightness_u == 16 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>Flashlight off</option>", 0, brightness_u == 0 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>100%% brightness + 220ms</option>", 1, brightness_u == 1 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>90%% brightness + 220ms</option>", 2, brightness_u == 2 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>80%% brightness + 220ms</option>", 3, brightness_u == 3 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>70%% brightness + 220ms</option>", 4, brightness_u == 4 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>60%% brightness + 220ms</option>", 5, brightness_u == 5 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>50%% brightness + 220ms</option>", 6, brightness_u == 6 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>40%% brightness + 220ms</option>", 7, brightness_u == 7 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>30%% brightness + 220ms</option>", 8, brightness_u == 8 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>100%% brightness + 1.3s</option>", 9, brightness_u == 9 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>90%% brightness + 1.3s</option>", 10, brightness_u == 10 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>80%% brightness + 1.3s</option>", 11, brightness_u == 11 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>70%% brightness + 1.3s</option>", 12, brightness_u == 12 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>60%% brightness + 1.3s</option>", 13, brightness_u == 13 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>50%% brightness + 1.3s</option>", 14, brightness_u == 14 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>40%% brightness + 1.3s</option>", 15, brightness_u == 15 ? "selected" : "");
+  httpClient.printf("<option value=\"%d\" %s>30%% brightness + 1.3s</option>", 16, brightness_u == 16 ? "selected" : "");
 
-  client.println("</select><br>");
+  httpClient.println("</select><br>");
 
-  client.println("<li class=\"button\">");
-  client.println("<button type=\"submit\">Flash</button>");
-  client.println("</li>");
-  client.println("</ul>");
-  client.println("</form>");
+  httpClient.println("<li class=\"button\">");
+  httpClient.println("<button type=\"submit\">Flash</button>");
+  httpClient.println("</li>");
+  httpClient.println("</ul>");
+  httpClient.println("</form>");
 
-  client.println("<br />");
-  client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  client.printf("<img src=\"/sensorImageNow.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
+  httpClient.printf("<img src=\"/sensorImageNow.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
   /*
     if (HTTP_UI_JPEG_flashTestJPEG_len > 0)
     {
-      client.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
+      httpClient.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
     }
   */
-  HTTP_UI_PART_HTMLFooter(client);
+  HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
 String urlDecode(String input)
@@ -1428,7 +1428,7 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, " ", HTTP_UI_PAGE_top} // default handler
 };
 
-void sendPage(EthernetClient client, String page)
+void sendPage(EthernetClient httpClient, String page)
 {
   M5_LOGI("page = %s", page.c_str());
 
@@ -1438,124 +1438,129 @@ void sendPage(EthernetClient client, String page)
   {
     if (page == pageHandlers[i].page)
     {
-      pageHandlers[i].handler(client);
+      pageHandlers[i].handler(httpClient);
       return;
     }
   }
-  HTTP_UI_PAGE_notFound(client);
+  HTTP_UI_PAGE_notFound(httpClient);
 }
 
 void HTTP_UI()
 {
 
-  EthernetClient client = HttpUIServer.available();
-
-  if (client)
+  EthernetClient httpClient = HttpUIServer.available();
+  if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
   {
-    unsigned long millis0 = millis();
-    unsigned long millis1 = millis0;
-
-    unsigned long bmillis1 = millis0;
-    unsigned long bmillis2 = millis0;
-    unsigned long bmillis3 = millis0;
-    unsigned long bmillis4 = millis0;
-
-    unsigned long millisStart = millis0;
-    unsigned long clientStart = millis0;
-
-    M5_LOGI("new client");
-    boolean currentLineIsBlank = true;
-    boolean currentLineIsNotGetPost = false;
-    boolean currentLineHaveEnoughLength = false;
-
-    String currentLine = "";
-    String page = "";
-    bool getRequest = false;
-
-    size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
-
-    unsigned long saveTimeout = client.getTimeout();
-    M5_LOGI("default Timeout = %u", saveTimeout);
-    client.setTimeout(1000);
-
-    while (client.connected())
+    if (httpClient)
     {
-      millis0 = millis();
-      if (client.available())
+      M5_LOGD("mutex take success");
+      unsigned long millis0 = millis();
+      unsigned long millis1 = millis0;
+
+      // unsigned long millisStart = millis0;
+      unsigned long clientStart = millis0;
+
+      M5_LOGI("new httpClient");
+      boolean currentLineIsBlank = true;
+      boolean currentLineIsNotGetPost = false;
+      boolean currentLineHaveEnoughLength = false;
+
+      String currentLine = "";
+      String page = "";
+      bool getRequest = false;
+
+      size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
+
+      unsigned long saveTimeout = httpClient.getTimeout();
+      M5_LOGI("default Timeout = %u", saveTimeout);
+      httpClient.setTimeout(1000);
+
+      unsigned long loopCount = 0;
+      unsigned long charCount = 0;
+
+      while (httpClient.connected())
       {
-        char c = client.read();
-
-        if (c == '\n' && currentLineIsBlank) // Request End Check ( request end line = "\r\n")
+        loopCount++;
+        if (httpClient.available())
         {
-          // Request End task
-          if (getRequest)
+          char c = httpClient.read();
+          charCount++;
+
+          if (c == '\n' && currentLineIsBlank) // Request End Check ( request end line = "\r\n")
           {
-            sendPage(client, page);
-          }
-          else
-          {
-            HTTP_UI_PAGE_notFound(client);
-          }
-          M5_LOGD("break from request line end.");
-          break;
-        }
-
-        if (c == '\n') // Line End
-        {
-          M5_LOGV("%s", currentLine.c_str());
-          currentLineIsBlank = true, currentLine = "";
-          currentLineIsNotGetPost = false;
-          currentLineHaveEnoughLength = false;
-          millis0 = millis();
-        }
-        else if (c != '\r') // Line have request char
-        {
-          currentLineIsBlank = false, currentLine += c;
-        }
-
-        // bmillis2 = millis() - millis0;
-
-        if (!currentLineHaveEnoughLength && currentLine.length() > 6)
-        {
-          currentLineHaveEnoughLength = true;
-        }
-
-        if (!currentLineIsNotGetPost && currentLineHaveEnoughLength && (!currentLine.startsWith("GET /") && !currentLine.startsWith("POST /")))
-        {
-          currentLineIsNotGetPost = true;
-        }
-
-        if (currentLineHaveEnoughLength && !currentLineIsNotGetPost && !getRequest)
-        {
-          for (size_t i = 0; i < numPages; i++)
-          {
-            String pageName = String(pageHandlers[i].page);
-            String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
-
-            if (currentLine.startsWith(CheckLine.c_str()))
+            // Request End task
+            if (getRequest)
             {
-              // page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
-              page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
-              M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
-              getRequest = true;
-              break;
+              sendPage(httpClient, page);
+            }
+            else
+            {
+              HTTP_UI_PAGE_notFound(httpClient);
+            }
+            M5_LOGD("break from request line end.");
+            break;
+          }
+
+          if (c == '\n') // Line End
+          {
+            M5_LOGV("%s", currentLine.c_str());
+            currentLineIsBlank = true, currentLine = "";
+            currentLineIsNotGetPost = false;
+            currentLineHaveEnoughLength = false;
+            millis0 = millis();
+          }
+          else if (c != '\r') // Line have request char
+          {
+            currentLineIsBlank = false, currentLine += c;
+          }
+
+          if (!currentLineHaveEnoughLength && currentLine.length() > 6)
+          {
+            currentLineHaveEnoughLength = true;
+          }
+
+          if (!currentLineIsNotGetPost && currentLineHaveEnoughLength && (!currentLine.startsWith("GET /") && !currentLine.startsWith("POST /")))
+          {
+            currentLineIsNotGetPost = true;
+          }
+
+          if (currentLineHaveEnoughLength && !currentLineIsNotGetPost && !getRequest)
+          {
+            for (size_t i = 0; i < numPages; i++)
+            {
+              String pageName = String(pageHandlers[i].page);
+              String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
+
+              if (currentLine.startsWith(CheckLine.c_str()))
+              {
+                page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
+                M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
+                getRequest = true;
+                break;
+              }
             }
           }
         }
-        // bmillis3 = millis() - millis0;
+
+        if (millis0 - millis1 >= 500)
+        {
+          M5_LOGE("%s : %u", currentLine.c_str(), millis0 - millis1);
+        }
+        millis1 = millis0;
+        delay(1);
       }
 
-      if (millis0 - millis1 >= 500)
-      {
-        // M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
-        M5_LOGE("%s : %u", currentLine.c_str(), millis0 - millis1);
-      }
-      millis1 = millis0;
+      httpClient.setTimeout(saveTimeout);
+      httpClient.stop();
 
-      delay(1);
+      M5_LOGI("httpClient disconnected : httpClient alived time =  %u ms", millis() - clientStart);
+      M5_LOGI("loopCount =  %u ,charCount = %u", loopCount, charCount);
     }
-    client.setTimeout(saveTimeout);
-    client.stop();
-    M5_LOGI("client disconnected : client alived time =  %u ms", millis() - clientStart);
+
+    xSemaphoreGive(mutex_Ethernet);
+  }
+  else
+  {
+    M5_LOGW("mutex can not take");
   }
 }

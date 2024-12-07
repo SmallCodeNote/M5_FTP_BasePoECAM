@@ -30,8 +30,18 @@ void TimeServerAccessLoop(void *arg)
     if (count >= 60)
     {
       M5_LOGV("");
-      NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
-      count = 0;
+      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+      {
+        M5_LOGV("");
+        NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
+        M5_LOGV("");
+        count = 0;
+        xSemaphoreGive(mutex_Ethernet);
+      }
+      else
+      {
+        M5_LOGW("mutex can not take.");
+      }
       M5_LOGV("");
     }
     else
@@ -171,7 +181,7 @@ void ImageStoreLoop(void *arg)
       digitalWrite(FLASH_EN_PIN, LOW);
 
       lastCheckEpoc = currentEpoch;
-      nextBufferingEpoc = currentEpoch + storeData.imageBufferingInterval;
+      nextBufferingEpoc = currentEpoch + storeData.imageBufferingEpochInterval;
 
       // M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
       lastShotMillis = nowShotMillis;
@@ -370,7 +380,13 @@ void HTTPLoop(void *arg)
   while (true)
   {
     HTTP_UI();
-    Ethernet.maintain();
+
+    if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
+    {
+      Ethernet.maintain();
+      xSemaphoreGive(mutex_Ethernet);
+    }
+
     delay(10);
   }
   vTaskDelete(NULL);
@@ -386,8 +402,12 @@ void DataSaveLoop(void *arg)
   unsigned long nextSaveEpoc_Edge = 0;
   unsigned long nextSaveEpoc_Prof = 0;
 
+  unsigned long loopStartMillis = millis();
+
   while (true)
   {
+    loopStartMillis = millis();
+
     if ((Ethernet.linkStatus() != LinkON))
     {
       M5_LOGW("Ethernet link is not on.");
@@ -398,7 +418,16 @@ void DataSaveLoop(void *arg)
     if (!ftp.isConnected())
     {
       M5_LOGW("ftp is not Connected.");
-      ftp.OpenConnection();
+
+      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+      {
+        ftp.OpenConnection();
+        xSemaphoreGive(mutex_Ethernet);
+      }
+      else
+      {
+      }
+
       delay(1000);
     }
     else
@@ -420,9 +449,17 @@ void DataSaveLoop(void *arg)
           M5_LOGI("Jpeg %u", saveInterval);
           nextSaveEpoc_Jpeg = jpegItem.epoc + saveInterval;
           String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
-          ftp.MakeDirRecursive(directoryPath);
           String filePath = directoryPath + "/" + createFilenameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
-          ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
+
+          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          {
+            ftp.MakeDirRecursive(directoryPath);
+            ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
+            xSemaphoreGive(mutex_Ethernet);
+          }
+          else
+          {
+          }
         }
         free(jpegItem.buf);
       }
@@ -437,10 +474,18 @@ void DataSaveLoop(void *arg)
           M5_LOGI("edge %u", saveInterval);
           nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
           String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
-          ftp.MakeDirRecursive(directoryPath);
           String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
           String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
-          ftp.AppendTextLine(filePath + ".csv", testLine);
+
+          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          {
+            ftp.MakeDirRecursive(directoryPath);
+            ftp.AppendTextLine(filePath + ".csv", testLine);
+            xSemaphoreGive(mutex_Ethernet);
+          }
+          else
+          {
+          }
         }
       }
 
@@ -454,22 +499,45 @@ void DataSaveLoop(void *arg)
           M5_LOGI("prof %u", saveInterval);
           nextSaveEpoc_Prof = profItem.epoc + saveInterval;
           String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
-          ftp.MakeDirRecursive(directoryPath);
           String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
           String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
-          ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
+
+          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          {
+            ftp.MakeDirRecursive(directoryPath);
+            ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
+            xSemaphoreGive(mutex_Ethernet);
+          }
+          else
+          {
+          }
         }
         free(profItem.buf);
       }
     }
 
-    Ethernet.maintain();
-    delay(100);
+    if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
+    {
+      Ethernet.maintain();
+      xSemaphoreGive(mutex_Ethernet);
+    }
+
+    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
+    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
+    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
   }
 
   if (ftp.isConnected())
-    ftp.CloseConnection();
-
+  {
+    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+    {
+      ftp.CloseConnection();
+      xSemaphoreGive(mutex_Ethernet);
+    }
+    else
+    {
+    }
+  }
   vTaskDelete(NULL);
 }
 

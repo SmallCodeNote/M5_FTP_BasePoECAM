@@ -7,6 +7,8 @@
 
 #define FLASH_EN_PIN 25
 
+#define MUX_BLOCK_TIM 1000//mutex block time
+
 struct JpegItem
 {
   unsigned long epoc;
@@ -39,7 +41,6 @@ void unit_flash_set_brightness(uint8_t brightness);
 uint16_t CameraSensorFrameWidth(framesize_t framesize);
 uint16_t CameraSensorFrameHeight(framesize_t framesize);
 
-
 extern M5_Ethernet_FtpClient ftp;
 extern M5_Ethernet_NtpClient NtpClient;
 
@@ -50,5 +51,8 @@ extern QueueHandle_t xQueueProf_Store;
 extern QueueHandle_t xQueueJpeg_Last;
 extern QueueHandle_t xQueueEdge_Last;
 extern QueueHandle_t xQueueProf_Last;
+
+extern SemaphoreHandle_t mutex_Ethernet;
+// extern portMUX_TYPE mutex_Ethernet;
 
 #endif

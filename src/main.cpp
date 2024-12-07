@@ -26,6 +26,8 @@
 #define MOSI 13
 #define CS 4
 
+// portMUX_TYPE mutex_Ethernet = portMUX_INITIALIZER_UNLOCKED;
+SemaphoreHandle_t mutex_Ethernet;
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
@@ -235,6 +237,12 @@ void unit_flash_init(void)
 
 void setup()
 {
+
+  if (mutex_Ethernet == NULL)
+  {
+    mutex_Ethernet = xSemaphoreCreateMutex();
+  }
+
   M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
   delay(500); // M5_Log starting wait
 
@@ -269,8 +277,8 @@ void setup()
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
   xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 4096, NULL, 2, NULL, 0);
   xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
-  //xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
-  
+  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
+
   xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 1);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 0, NULL, 1);
@@ -316,12 +324,12 @@ void loop()
       M5.Display.println("time information can not use now.     ");
     }
   }
-  //Ethernet.maintain();
+  // Ethernet.maintain();
 }
 
 void unit_flash_set_brightness(uint8_t brightness)
 {
-  //M5_LOGI("flash brightness = %u", brightness);
+  // M5_LOGI("flash brightness = %u", brightness);
   if ((brightness >= 1) && (brightness <= 16))
   {
     for (int i = 0; i < brightness; i++)
@@ -336,5 +344,5 @@ void unit_flash_set_brightness(uint8_t brightness)
   {
     digitalWrite(FLASH_EN_PIN, LOW);
   }
-  //M5_LOGI("unit_flash_set_brightness = %u", brightness);
+  // M5_LOGI("unit_flash_set_brightness = %u", brightness);
 }

@@ -134,7 +134,7 @@ uint16_t M5_Ethernet_FtpClient::OpenConnection()
 #if ((ESP32) && !FTP_CLIENT_USING_ETHERNET)
   if (client.connect(serverAdress, port, timeout))
 #else
-  if (client.connect(serverAdress.c_str(), port))
+  if (ftpClient.connect(serverAdress.c_str(), port))
 #endif
   {
     FTP_LOGINFO(F("Command connected"));
@@ -145,16 +145,16 @@ uint16_t M5_Ethernet_FtpClient::OpenConnection()
     return responceCode;
 
   FTP_LOGINFO1("Send USER =", userName);
-  client.print(FTP_COMMAND_USER);
-  client.println(userName);
+  ftpClient.print(FTP_COMMAND_USER);
+  ftpClient.println(userName);
 
   responceCode = GetCmdAnswer();
   if (isErrorCode(responceCode))
     return responceCode;
 
   FTP_LOGINFO1("Send PASSWORD =", passWord);
-  client.print(FTP_COMMAND_PASS);
-  client.println(passWord);
+  ftpClient.print(FTP_COMMAND_PASS);
+  ftpClient.println(passWord);
   return GetCmdAnswer();
 }
 
@@ -163,8 +163,8 @@ uint16_t M5_Ethernet_FtpClient::OpenConnection()
  */
 void M5_Ethernet_FtpClient::CloseConnection()
 {
-  client.println(FTP_COMMAND_QUIT);
-  client.stop();
+  ftpClient.println(FTP_COMMAND_QUIT);
+  ftpClient.stop();
   FTP_LOGINFO(F("Connection closed"));
 }
 
@@ -177,12 +177,12 @@ uint16_t M5_Ethernet_FtpClient::GetCmdAnswer(char *result, int offsetStart)
   outCount = 0;
   unsigned long _m = millis();
 
-  while (!client.available() && millis() < _m + timeout)
+  while (!ftpClient.available() && millis() < _m + timeout)
   {
     delay(100);
   }
 
-  if (!client.available())
+  if (!ftpClient.available())
   {
     memset(outBuf, 0, sizeof(outBuf));
     strcpy(outBuf, "Offline");
@@ -191,9 +191,9 @@ uint16_t M5_Ethernet_FtpClient::GetCmdAnswer(char *result, int offsetStart)
     return FTP_RESCODE_CLIENT_ISNOT_CONNECTED;
   }
 
-  while (client.available())
+  while (ftpClient.available())
   {
-    thisByte = client.read();
+    thisByte = ftpClient.read();
     if (outCount < sizeof(outBuf))
     {
       outBuf[outCount] = thisByte;
@@ -243,14 +243,14 @@ uint16_t M5_Ethernet_FtpClient::InitAsciiPassiveMode()
   uint16_t responseCode = FTP_RESCODE_SYNTAX_ERROR;
 
   FTP_LOGINFO("Send TYPE A");
-  client.println("TYPE A"); // Set ASCII mode
+  ftpClient.println("TYPE A"); // Set ASCII mode
   responseCode = GetCmdAnswer();
 
   if (isErrorCode(responseCode))
     return responseCode;
 
   FTP_LOGINFO("Send PASV");
-  client.println(FTP_COMMAND_PASSIVE_MODE);
+  ftpClient.println(FTP_COMMAND_PASSIVE_MODE);
 
   responseCode = GetCmdAnswer();
   if (isErrorCode(responseCode))
@@ -259,7 +259,7 @@ uint16_t M5_Ethernet_FtpClient::InitAsciiPassiveMode()
   char *tmpPtr;
   while (strtol(outBuf, &tmpPtr, 10) != FTP_ENTERING_PASSIVE_MODE)
   {
-    client.println(FTP_COMMAND_PASSIVE_MODE);
+    ftpClient.println(FTP_COMMAND_PASSIVE_MODE);
 
     responseCode = GetCmdAnswer();
     if (isErrorCode(responseCode))
@@ -344,8 +344,8 @@ uint16_t M5_Ethernet_FtpClient::ContentList(const char *dir, String *list)
   char _resp[sizeof(outBuf)];
 
   FTP_LOGINFO("Send MLSD");
-  client.print(FTP_COMMAND_LIST_DIR_STANDARD);
-  client.println(dir);
+  ftpClient.print(FTP_COMMAND_LIST_DIR_STANDARD);
+  ftpClient.println(dir);
 
   uint16_t responseCode = GetCmdAnswer(_resp);
   if (isErrorCode(responseCode))
@@ -390,8 +390,8 @@ uint16_t M5_Ethernet_FtpClient::ContentListWithListCommand(const char *dir, Stri
   uint16_t _b = 0;
 
   FTP_LOGINFO("Send LIST");
-  client.print(FTP_COMMAND_LIST_DIR);
-  client.println(dir);
+  ftpClient.print(FTP_COMMAND_LIST_DIR);
+  ftpClient.println(dir);
 
   uint16_t responseCode = GetCmdAnswer(_resp);
   if (isErrorCode(responseCode))
@@ -436,8 +436,8 @@ uint16_t M5_Ethernet_FtpClient::GetLastModifiedTime(const char *fileName, char *
   }
 
   FTP_LOGINFO("Send MDTM");
-  client.print(FTP_COMMAND_FILE_LAST_MOD_TIME);
-  client.println(fileName);
+  ftpClient.print(FTP_COMMAND_FILE_LAST_MOD_TIME);
+  ftpClient.println(fileName);
   return GetCmdAnswer(result, 4);
 }
 
@@ -484,16 +484,16 @@ uint16_t M5_Ethernet_FtpClient::RenameFile(String from, String to)
   }
 
   FTP_LOGINFO("Send RNFR");
-  client.print(FTP_COMMAND_RENAME_FILE_FROM);
-  client.println(from);
+  ftpClient.print(FTP_COMMAND_RENAME_FILE_FROM);
+  ftpClient.println(from);
 
   uint16_t responseCode = GetCmdAnswer();
   if (isErrorCode(responseCode))
     return responseCode;
 
   FTP_LOGINFO("Send RNTO");
-  client.print(FTP_COMMAND_RENAME_FILE_TO);
-  client.println(to);
+  ftpClient.print(FTP_COMMAND_RENAME_FILE_TO);
+  ftpClient.println(to);
   return GetCmdAnswer();
 }
 
@@ -508,8 +508,8 @@ uint16_t M5_Ethernet_FtpClient::NewFile(String fileName)
   }
 
   FTP_LOGINFO("Send STOR");
-  client.print(FTP_COMMAND_FILE_UPLOAD);
-  client.println(fileName);
+  ftpClient.print(FTP_COMMAND_FILE_UPLOAD);
+  ftpClient.println(fileName);
   return GetCmdAnswer();
 }
 
@@ -524,8 +524,8 @@ uint16_t M5_Ethernet_FtpClient::ChangeWorkDir(String dir)
   }
 
   FTP_LOGINFO("Send CWD");
-  client.print(FTP_COMMAND_CURRENT_WORKING_DIR);
-  client.println(dir);
+  ftpClient.print(FTP_COMMAND_CURRENT_WORKING_DIR);
+  ftpClient.println(dir);
   return GetCmdAnswer();
 }
 
@@ -540,8 +540,8 @@ uint16_t M5_Ethernet_FtpClient::MakeDir(String dir)
   }
 
   FTP_LOGINFO("Send MKD");
-  client.print(FTP_COMMAND_MAKE_DIR);
-  client.println(dir);
+  ftpClient.print(FTP_COMMAND_MAKE_DIR);
+  ftpClient.println(dir);
   return GetCmdAnswer();
 }
 
@@ -561,8 +561,8 @@ uint16_t M5_Ethernet_FtpClient::MakeDirRecursive(String dir)
   for (const String &subDir : paths)
   {
     currentPath += "/" + subDir;
-    client.print(FTP_COMMAND_MAKE_DIR);
-    client.println(currentPath);
+    ftpClient.print(FTP_COMMAND_MAKE_DIR);
+    ftpClient.println(currentPath);
     uint16_t res = GetCmdAnswer();
     if (isErrorCode(res) && res != 550)
     { // Ignore "Directory already exists" error
@@ -609,8 +609,8 @@ uint16_t M5_Ethernet_FtpClient::RemoveDir(String dir)
   }
 
   FTP_LOGINFO("Send RMD");
-  client.print(FTP_COMMAND_REMOVE_DIR);
-  client.println(dir);
+  ftpClient.print(FTP_COMMAND_REMOVE_DIR);
+  ftpClient.println(dir);
   return GetCmdAnswer();
 }
 
@@ -625,8 +625,8 @@ uint16_t M5_Ethernet_FtpClient::AppendFile(String fileName)
   }
 
   FTP_LOGINFO("Send APPE");
-  client.print(FTP_COMMAND_APPEND_FILE);
-  client.println(fileName);
+  ftpClient.print(FTP_COMMAND_APPEND_FILE);
+  ftpClient.println(fileName);
 
   return GetCmdAnswer();
 }
@@ -749,8 +749,8 @@ uint16_t M5_Ethernet_FtpClient::DownloadString(const char *filename, String &str
   if (!isConnected())
     return FTP_RESCODE_CLIENT_ISNOT_CONNECTED;
 
-  client.print(FTP_COMMAND_DOWNLOAD);
-  client.println(filename);
+  ftpClient.print(FTP_COMMAND_DOWNLOAD);
+  ftpClient.println(filename);
 
   char _resp[sizeof(outBuf)];
   uint16_t responseCode = GetCmdAnswer(_resp);
@@ -778,8 +778,8 @@ uint16_t M5_Ethernet_FtpClient::DownloadFile(const char *filename, unsigned char
     return FTP_RESCODE_CLIENT_ISNOT_CONNECTED;
   }
 
-  client.print(FTP_COMMAND_DOWNLOAD);
-  client.println(filename);
+  ftpClient.print(FTP_COMMAND_DOWNLOAD);
+  ftpClient.println(filename);
 
   char _resp[sizeof(outBuf)];
   uint16_t responseCode = GetCmdAnswer(_resp);
@@ -819,8 +819,8 @@ uint16_t M5_Ethernet_FtpClient::DeleteFile(String file)
   }
 
   FTP_LOGINFO("Send DELE");
-  client.print(FTP_COMMAND_DELETE_FILE);
-  client.println(file);
+  ftpClient.print(FTP_COMMAND_DELETE_FILE);
+  ftpClient.println(file);
 
   return GetCmdAnswer();
 }

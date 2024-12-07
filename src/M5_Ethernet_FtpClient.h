@@ -75,7 +75,7 @@ class M5_Ethernet_FtpClient
 private:
     uint16_t WriteClientBuffered(EthernetClient *cli, unsigned char *data, int dataLength);
 
-    EthernetClient client;
+    EthernetClient ftpClient;
     EthernetClient dclient;
 
     char outBuf[1024];

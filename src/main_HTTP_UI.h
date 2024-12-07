@@ -17,37 +17,37 @@
   }
 
 #define HTML_PUT_INFOWITHLABEL(labelString) \
-  client.print(#labelString ": ");          \
-  client.print(labelString);                \
-  client.println("<br />");
+  httpClient.print(#labelString ": ");          \
+  httpClient.print(labelString);                \
+  httpClient.println("<br />");
 
 #define HTML_PUT_LI_INPUT(inputName)                                                             \
   {                                                                                              \
-    client.println("<li>");                                                                      \
-    client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
-    client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
-    client.print(inputName);                                                                     \
-    client.println("\" size=\"4\" required>");                                                   \
-    client.println("</li>");                                                                     \
+    httpClient.println("<li>");                                                                      \
+    httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
+    httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
+    httpClient.print(inputName);                                                                     \
+    httpClient.println("\" size=\"4\" required>");                                                   \
+    httpClient.println("</li>");                                                                     \
   }
 #define HTML_PUT_LI_WIDEINPUT(inputName)                                                         \
   {                                                                                              \
-    client.println("<li>");                                                                      \
-    client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
-    client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
-    client.print(inputName);                                                                     \
-    client.println("\" required>");                                                              \
-    client.println("</li>");                                                                     \
+    httpClient.println("<li>");                                                                      \
+    httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
+    httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
+    httpClient.print(inputName);                                                                     \
+    httpClient.println("\" required>");                                                              \
+    httpClient.println("</li>");                                                                     \
   }
 #define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName, comment)                                       \
   {                                                                                              \
-    client.println("<li>");                                                                      \
-    client.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
-    client.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
-    client.print(inputName);                                                                     \
-    client.println("\" size=\"4\" required>");                                                   \
-    client.printf("[%s]", comment);                                                              \
-    client.println("</li>");                                                                     \
+    httpClient.println("<li>");                                                                      \
+    httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
+    httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
+    httpClient.print(inputName);                                                                     \
+    httpClient.println("\" size=\"4\" required>");                                                   \
+    httpClient.printf("[%s]", comment);                                                              \
+    httpClient.println("</li>");                                                                     \
   }
 // used to image stream
 #define PART_BOUNDARY "123456789000000000000987654321"
@@ -79,45 +79,45 @@ struct HTTP_UI_JPEG_STORE_TaskArgs
   pixformat_t pixmode;
 };
 
-
 extern EthernetServer HttpUIServer;
 extern String SensorValueString;
+
 void HTTP_UI();
-void HTTP_UI_PART_ResponceHeader(EthernetClient client, String Content_Type);
-void HTTP_UI_PART_HTMLHeader(EthernetClient client);
-void HTTP_UI_PART_HTMLFooter(EthernetClient client);
+void HTTP_UI_PART_ResponceHeader(EthernetClient httpClient, String Content_Type);
+void HTTP_UI_PART_HTMLHeader(EthernetClient httpClient);
+void HTTP_UI_PART_HTMLFooter(EthernetClient httpClient);
 
-void HTTP_UI_JSON_sensorValueNow(EthernetClient client);
-void HTTP_UI_JSON_unitTimeNow(EthernetClient client);
+void HTTP_UI_JSON_sensorValueNow(EthernetClient httpClient);
+void HTTP_UI_JSON_unitTimeNow(EthernetClient httpClient);
 
-void HTTP_UI_JSON_cameraLineNow(EthernetClient client);
+void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient);
 uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs);
 
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient client);
-void HTTP_UI_JPEG_flashTestImage(EthernetClient client);
-void HTTP_UI_STREAM_JPEG(EthernetClient client);
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient);
+void HTTP_UI_JPEG_flashTestImage(EthernetClient httpClient);
+void HTTP_UI_STREAM_JPEG(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_top(EthernetClient client);
-void HTTP_UI_PAGE_view(EthernetClient client);
-void HTTP_UI_PAGE_cameraLineView(EthernetClient client);
+void HTTP_UI_PAGE_top(EthernetClient httpClient);
+void HTTP_UI_PAGE_view(EthernetClient httpClient);
+void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_chart(EthernetClient client);
-void HTTP_UI_PAGE_notFound(EthernetClient client);
+void HTTP_UI_PAGE_chart(EthernetClient httpClient);
+void HTTP_UI_PAGE_notFound(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configParam(EthernetClient client);
-void HTTP_UI_POST_configParam(EthernetClient client);
+void HTTP_UI_PAGE_configParam(EthernetClient httpClient);
+void HTTP_UI_POST_configParam(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configCamera(EthernetClient client);
-void HTTP_UI_POST_configCamera(EthernetClient client);
+void HTTP_UI_PAGE_configCamera(EthernetClient httpClient);
+void HTTP_UI_POST_configCamera(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configChart(EthernetClient client);
-void HTTP_UI_POST_configChart(EthernetClient client);
+void HTTP_UI_PAGE_configChart(EthernetClient httpClient);
+void HTTP_UI_POST_configChart(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configTime(EthernetClient client);
-void HTTP_UI_POST_configTime(EthernetClient client);
+void HTTP_UI_PAGE_configTime(EthernetClient httpClient);
+void HTTP_UI_POST_configTime(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_unitTime(EthernetClient client);
-void HTTP_UI_POST_configTime(EthernetClient client);
+void HTTP_UI_PAGE_unitTime(EthernetClient httpClient);
+void HTTP_UI_POST_configTime(EthernetClient httpClient);
 
 String urlDecode(String input);
 void TaskRestart(void *arg);

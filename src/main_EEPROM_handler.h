@@ -23,13 +23,13 @@ struct DATA_SET
     u_int16_t ftpEdgeSaveInterval;
     u_int16_t ftpProfileSaveInterval;
 
-    u_int16_t imageBufferingInterval;
+    u_int16_t imageBufferingEpochInterval;//[1- (sec.)]
 
     u_int16_t chartUpdateInterval;//[ms]
     u_int16_t chartShowPointCount;
     int8_t timeZoneOffset;
     u_int8_t flashIntensityMode;
-    u_int16_t flashLength; //[ms]
+    u_int16_t flashLength; //[1- (ms)]
 
     uint8_t pixLineStep;
     uint8_t pixLineRange;
@@ -38,7 +38,7 @@ struct DATA_SET
     uint8_t pixLineEdgeSearchEnd;   // [0-100%]
     uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
     uint16_t pixLineThrethold;      //[0-765]
-    uint8_t pixLineAngle;           //[0-90deg 0:horizontal 90:vertical]
+    uint8_t pixLineAngle;           //[0-90(deg) 0:horizontal 90:vertical]
 
 
     // Sensor values
@@ -98,7 +98,7 @@ extern String ftpImageSaveInterval;
 extern String ftpEdgeSaveInterval;
 extern String ftpProfileSaveInterval;
 
-extern String imageBufferingInterval;
+extern String imageBufferingEpochInterval;
 
 
 extern String chartUpdateInterval;

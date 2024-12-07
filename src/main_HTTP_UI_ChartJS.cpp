@@ -3232,10 +3232,10 @@ const uint8_t CodeMain[][64] ={{47,42,33,10,32,42,32,67,104,97,114,116,46,106,11
 ,{111,44,116,44,83,115,41,44,65,110,46,67,104,97,114,116,61,65,110,44,34,117,110,100,101,102,105,110,101,100,34,33,61,116,121,112,101,111,102,32,119,105,110,100,111,119,38,38,40,119,105,110,100,111,119,46,67,104,97,114,116,61,65,110}};
 uint8_t CodeEnd[47] ={41,44,65,110,125,41,41,59,10,47,47,35,32,115,111,117,114,99,101,77,97,112,112,105,110,103,85,82,76,61,99,104,97,114,116,46,117,109,100,46,106,115,46,109,97,112,10};
 
-void HTTP_UI_JS_ChartJS(EthernetClient client)
+void HTTP_UI_JS_ChartJS(EthernetClient httpClient)
 {
-    HTTP_UI_PART_ResponceHeader(client, "application/javascript");
-for(int i = 0; i<3212;i++){client.write(CodeMain[i],64u);}
-client.write(CodeEnd,47u);
+    HTTP_UI_PART_ResponceHeader(httpClient, "application/javascript");
+for(int i = 0; i<3212;i++){httpClient.write(CodeMain[i],64u);}
+httpClient.write(CodeEnd,47u);
 
 }
