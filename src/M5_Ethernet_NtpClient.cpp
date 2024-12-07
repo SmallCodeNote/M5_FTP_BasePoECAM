@@ -15,9 +15,10 @@ void M5_Ethernet_NtpClient::updateTimeFromServer(String address, int timezone)
     timezoneOffset = timezone;
 
     sendNTPpacket(address.c_str());
-    delay(800);
+    delay(50);
     if (Udp.parsePacket())
     {
+        M5_LOGD("Udp parsePacket()");
         Udp.read(packetBuffer, NTP_PACKET_SIZE); // read the packet into the buffer
         unsigned long highWord = word(packetBuffer[40], packetBuffer[41]);
         unsigned long lowWord = word(packetBuffer[42], packetBuffer[43]);
@@ -32,6 +33,11 @@ void M5_Ethernet_NtpClient::updateTimeFromServer(String address, int timezone)
 
         M5_LOGI("Success UpdateFromNTPserver %s , timezone = %d", address, timezone);
         return;
+    }
+    else
+    {
+        M5_LOGD("Udp can not parsePacket()");
+        currentEpoch = millis() / 1000u;
     }
     M5_LOGI("False UpdateFromNTPserver %s , timezone = %d", address, timezone);
     intMillis = millis();

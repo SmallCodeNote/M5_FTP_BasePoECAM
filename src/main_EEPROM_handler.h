@@ -25,7 +25,7 @@ struct DATA_SET
 
     u_int16_t imageBufferingInterval;
 
-    u_int16_t chartUpdateInterval;
+    u_int16_t chartUpdateInterval;//[ms]
     u_int16_t chartShowPointCount;
     int8_t timeZoneOffset;
     u_int8_t flashIntensityMode;

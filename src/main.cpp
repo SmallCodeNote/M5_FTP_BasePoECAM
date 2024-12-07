@@ -26,11 +26,6 @@
 #define MOSI 13
 #define CS 4
 
-void TimeUpdateLoop(void *arg);
-void TimeServerAccessLoop(void *arg);
-void ButtonKeepCountLoop(void *arg);
-void ShotLoop(void *arg);
-void ShotTask(void *arg);
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
@@ -272,12 +267,10 @@ void setup()
   unit_flash_init();
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
-  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
-  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
-
   xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 4096, NULL, 2, NULL, 0);
-
+  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
+  //xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
+  
   xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 1);
   xTaskCreatePinnedToCore(ButtonKeepCountLoop, "ButtonKeepCountLoop", 4096, NULL, 0, NULL, 1);

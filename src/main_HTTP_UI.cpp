@@ -59,105 +59,6 @@ void HTTP_UI_JSON_unitTimeNow(EthernetClient client)
   client.println("}");
 }
 
-// uint8_t *HTTP_UI_JPEG_cameraLineNow_JPEG_buf;
-// int32_t HTTP_UI_JPEG_cameraLineNow_JPEG_len;
-
-/*void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
-{
-  M5_LOGD("");
-
-  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_cameraLineNow_JPEG_buf, &HTTP_UI_JPEG_cameraLineNow_JPEG_len};
-  unit_flash_set_brightness(storeData.flashIntensityMode);
-  digitalWrite(FLASH_EN_PIN, HIGH);
-
-  delay(30);
-  xTaskCreatePinnedToCore(HTTP_UI_JPEG_STORE_Task, "HTTP_UI_JPEG_STORE_Task", 4096, &taskArgs, 0, NULL, 0);
-  delay(storeData.flashLength);
-  digitalWrite(FLASH_EN_PIN, LOW);
-
-  if (storeData.flashLength < 30)
-    delay(30 - storeData.flashLength);
-
-  if (HTTP_UI_JPEG_cameraLineNow_JPEG_len > 0)
-  {
-    PoECAM.setLed(true);
-
-    int32_t frame_len = *(taskArgs.HTTP_UI_JPEG_len);
-    uint8_t *frame_buf = *(taskArgs.HTTP_UI_JPEG_buf);
-    pixformat_t pixmode = taskArgs.pixmode;
-    u_int32_t fb_width = (u_int32_t)(taskArgs.fb_width);
-    u_int32_t fb_height = (u_int32_t)(taskArgs.fb_height);
-
-    // M5_LOGD("w: %u ,h: %u ,m:%u", fb_width, fb_height, pixmode);
-
-    uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * taskArgs.fb_width * taskArgs.fb_height);
-    fmt2rgb888(frame_buf, frame_len, pixmode, bitmap_buf);
-
-    uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
-    pixLineStep = pixLineStep > fb_width ? fb_width : pixLineStep;
-    uint32_t pixLineRange = (u_int32_t)(storeData.pixLineRange);
-    pixLineRange = pixLineRange > 100u ? 100u : pixLineRange;
-
-    // M5_LOGD("Step: %u ,Range: %u", pixLineStep, pixLineRange);
-
-    uint32_t RangePix = fb_width * pixLineRange / 100;
-    uint32_t xStartPix = ((fb_width * (100u - pixLineRange)) / 200u);
-    uint32_t xEndPix = xStartPix + ((fb_width * pixLineRange) / 100u);
-
-    // M5_LOGD("xStartPix= %u xEndPix= %u, RangePix= %u", xStartPix, xEndPix, RangePix);
-    // M5_LOGD("%u - %u", xStartPix, xEndPix);
-
-    u_int32_t startOffset = (fb_width * fb_height / 2u + xStartPix) * 3u;
-    uint8_t *bitmap_pix = bitmap_buf + startOffset;
-    uint8_t *bitmap_pix_lineEnd = bitmap_buf + startOffset + (xEndPix - xStartPix) * 3u;
-
-    bitmap_pix_lineEnd = bitmap_pix_lineEnd == bitmap_pix ? bitmap_pix_lineEnd + 3u : bitmap_pix_lineEnd;
-
-    HTTP_UI_PART_ResponceHeader(client, "application/json");
-    client.print("{");
-    client.print("\"unitTime\":");
-    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
-    client.println(",");
-    client.print("\"CameraLineValue\":[");
-
-    u_int16_t br = 0;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    br += *(bitmap_pix);
-    bitmap_pix++;
-    client.printf("%u", br);
-
-    while (bitmap_pix_lineEnd > bitmap_pix)
-    {
-      br = 0;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      br += *(bitmap_pix);
-      bitmap_pix++;
-      client.printf(",%u", br);
-
-      bitmap_pix += pixLineStep * 3;
-    }
-
-    client.println("]");
-    client.println(",");
-
-    client.print("\"edgePoint\":");
-    uint16_t edgePoint = HTTP_UI_JSON_cameraLineNow_EdgePosition(bitmap_buf, taskArgs);
-    client.printf("%u", edgePoint);
-
-    client.println("}");
-
-    free(bitmap_buf);
-  }
-  // M5_LOGD("");
-}
-*/
-
 void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 {
   ProfItem profItem;
@@ -233,40 +134,6 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JP
 
   return (uint16_t)x;
 }
-/*
-void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
-{
-  M5_LOGI("");
-  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_cameraLineNow_JPEG_buf, &HTTP_UI_JPEG_cameraLineNow_JPEG_len};
-  if (*(taskArgs.HTTP_UI_JPEG_len) > 0)
-  {
-    client.println("HTTP/1.1 200 OK");
-    client.println("Content-Type: image/jpeg");
-    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    client.println("Access-Control-Allow-Origin: *");
-    client.println();
-
-    int32_t to_sends = *(taskArgs.HTTP_UI_JPEG_len);
-    uint8_t *out_buf = *(taskArgs.HTTP_UI_JPEG_buf);
-
-    int32_t now_sends = 0;
-    uint32_t packet_len = 1 * 1024;
-
-    while (to_sends > 0)
-    {
-      now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
-      {
-        break;
-      }
-      out_buf += now_sends;
-      to_sends -= now_sends;
-    }
-    M5_LOGI("");
-  }
-  client.stop();
-}
-*/
 
 void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
 {
@@ -335,52 +202,6 @@ void HTTP_UI_JPEG_STORE_Task(void *arg)
   vTaskDelete(NULL);
   M5_LOGI("");
 }
-/*
-uint8_t *HTTP_UI_JPEG_sensorImageNow_JPEG_buf;
-int32_t HTTP_UI_JPEG_sensorImageNow_JPEG_len;
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
-{
-  M5_LOGI("");
-
-  HTTP_UI_JPEG_STORE_TaskArgs taskArgs = {&HTTP_UI_JPEG_sensorImageNow_JPEG_buf, &HTTP_UI_JPEG_sensorImageNow_JPEG_len};
-  unit_flash_set_brightness(storeData.flashIntensityMode);
-  digitalWrite(FLASH_EN_PIN, HIGH);
-
-  delay(30);
-  xTaskCreatePinnedToCore(HTTP_UI_JPEG_STORE_Task, "HTTP_UI_JPEG_STORE_Task", 4096, &taskArgs, 0, NULL, 0);
-  delay(storeData.flashLength);
-  digitalWrite(FLASH_EN_PIN, LOW);
-
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: image/jpeg");
-  client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-  client.println("Access-Control-Allow-Origin: *");
-  client.println();
-
-  if (*(taskArgs.HTTP_UI_JPEG_len) > 0)
-  {
-    int32_t to_sends = *(taskArgs.HTTP_UI_JPEG_len);
-    uint8_t *out_buf = *(taskArgs.HTTP_UI_JPEG_buf);
-
-    int32_t now_sends = 0;
-    uint32_t packet_len = 1 * 1024;
-
-    while (to_sends > 0)
-    {
-      now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (client.write(out_buf, now_sends) == 0)
-      {
-        break;
-      }
-      out_buf += now_sends;
-      to_sends -= now_sends;
-    }
-
-    M5_LOGI("");
-  }
-  client.stop();
-}
-*/
 
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
@@ -550,6 +371,12 @@ void HTTP_UI_PAGE_view(EthernetClient client)
   client.println("<img id=\"sensorImage\" src=\"/sensorImageNow.jpg\" alt=\"Sensor Image\" />");
 
   client.println("<script>");
+
+  client.println("function refreshImage() {");
+  client.println("  var img = document.getElementById('sensorImage');");
+  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  client.println("}");
+
   client.println("function fetchData() {");
   client.println("  var xhr = new XMLHttpRequest();");
   client.println("  xhr.onreadystatechange = function() {");
@@ -561,14 +388,11 @@ void HTTP_UI_PAGE_view(EthernetClient client)
   client.println("  xhr.open('GET', '/sensorValueNow.json', true);");
   client.println("  xhr.send();");
   client.println("}");
-  client.println("function refreshImage() {");
-  client.println("  var img = document.getElementById('sensorImage');");
-  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
-  client.println("}");
-  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
+
   client.printf("setInterval(refreshImage, %u);", storeData.chartUpdateInterval);
-  client.println("fetchData();");
+  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
   client.println("refreshImage();");
+  client.println("fetchData();");
   client.println("</script>");
 
   client.println("<br />");
@@ -590,11 +414,12 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("</ul>");
 
   client.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
+
   client.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
 
   client.println("<script src=\"/chart.js\"></script>");
-  client.println("<script>");
 
+  client.println("<script>");
   client.println("var chart = null;");
 
   client.println("function fetchCameraLineData() {");
@@ -674,8 +499,8 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.println("}");
 
   client.println("function update() {");
-  client.println("  fetchCameraLineData();");
   client.println("  refreshImage();");
+  client.println("  fetchCameraLineData();");
   client.println("}");
 
   client.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
@@ -751,8 +576,10 @@ void HTTP_UI_PAGE_chart(EthernetClient client)
   client.println("    }");
   client.println("  });");
   client.println("}");
-  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval > 3000 ? storeData.chartUpdateInterval - 3000 : 1);
+
+  client.printf("setInterval(fetchData, %u);", storeData.chartUpdateInterval);
   client.println("fetchData();");
+
   client.println("</script>");
 
   HTTP_UI_PART_HTMLFooter(client);
@@ -1434,12 +1261,12 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_POST, "configChartSuccess.html", HTTP_UI_POST_configChart},
     {HTTP_UI_MODE_POST, "configCameraSuccess.html", HTTP_UI_POST_configCamera},
     {HTTP_UI_MODE_POST, "configTimeSuccess.html", HTTP_UI_POST_configTime},
-    {HTTP_UI_MODE_GET, "", HTTP_UI_PAGE_top} // default handler
+    {HTTP_UI_MODE_GET, " ", HTTP_UI_PAGE_top} // default handler
 };
 
 void sendPage(EthernetClient client, String page)
 {
-  M5_LOGV("page = %s", page.c_str());
+  M5_LOGI("page = %s", page.c_str());
 
   size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
 
@@ -1469,74 +1296,102 @@ void HTTP_UI()
     unsigned long bmillis3 = millis0;
     unsigned long bmillis4 = millis0;
 
-    M5_LOGV("new client");
+    unsigned long millisStart = millis0;
+    unsigned long clientStart = millis0;
+
+    M5_LOGI("new client");
     boolean currentLineIsBlank = true;
+    boolean currentLineIsNotGetPost = false;
+    boolean currentLineHaveEnoughLength = false;
+
     String currentLine = "";
     String page = "";
     bool getRequest = false;
 
     size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
 
+    unsigned long saveTimeout = client.getTimeout();
+    M5_LOGI("default Timeout = %u", saveTimeout);
+    client.setTimeout(1000);
+
     while (client.connected())
     {
+      millis0 = millis();
       if (client.available())
       {
         char c = client.read();
-        M5.Log.printf("%c", c); // Serial.write(c);
 
-        millis0 = millis();
-
-        if (c == '\n')
+        if (c == '\n' && currentLineIsBlank) // Request End Check ( request end line = "\r\n")
         {
-          currentLineIsBlank = true, currentLine = "";
+          // Request End task
+          if (getRequest)
+          {
+            sendPage(client, page);
+          }
+          else
+          {
+            HTTP_UI_PAGE_notFound(client);
+          }
+          M5_LOGD("break from request line end.");
+          break;
         }
-        else if (c != '\r')
+
+        if (c == '\n') // Line End
+        {
+          M5_LOGV("%s", currentLine.c_str());
+          currentLineIsBlank = true, currentLine = "";
+          currentLineIsNotGetPost = false;
+          currentLineHaveEnoughLength = false;
+          millis0 = millis();
+        }
+        else if (c != '\r') // Line have request char
         {
           currentLineIsBlank = false, currentLine += c;
         }
 
-        bmillis1 = millis() - millis0;
+        //bmillis2 = millis() - millis0;
 
-        if (c == '\n' && currentLineIsBlank)
+        if (!currentLineHaveEnoughLength && currentLine.length() > 6)
         {
-          M5_LOGV("%s", page.c_str());
-          if (getRequest)
-            sendPage(client, page);
-          else
-            HTTP_UI_PAGE_notFound(client);
-          break;
+          currentLineHaveEnoughLength = true;
         }
 
-        bmillis2 = millis() - millis0;
+        if (!currentLineIsNotGetPost && currentLineHaveEnoughLength && (!currentLine.startsWith("GET /") && !currentLine.startsWith("POST /")))
+        {
+          currentLineIsNotGetPost = true;
+        }
 
-        if (currentLine.length() > 5 && (currentLine.startsWith("GET /") || currentLine.startsWith("POST /")))
+        if (currentLineHaveEnoughLength && !currentLineIsNotGetPost && !getRequest)
         {
           for (size_t i = 0; i < numPages; i++)
           {
             String pageName = String(pageHandlers[i].page);
             String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
-            if (currentLine.endsWith(CheckLine.c_str()))
+
+            if (currentLine.startsWith(CheckLine.c_str()))
             {
-              //page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
-              page =(pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
+              // page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? currentLine.substring(5) : currentLine.substring(6));
+              page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
               M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
               getRequest = true;
               break;
             }
           }
         }
-        bmillis3 = millis() - millis0;
-
-        if (millis0 - millis1 >= 500)
-        {
-          M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
-        }
-        millis1 = millis0;
+        //bmillis3 = millis() - millis0;
       }
+
+      if (millis0 - millis1 >= 500)
+      {
+        //M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
+        M5_LOGE("%s : %u", currentLine.c_str(), millis0 - millis1);
+      }
+      millis1 = millis0;
 
       delay(1);
     }
+    client.setTimeout(saveTimeout);
     client.stop();
-    M5_LOGV("client disconnected");
+    M5_LOGI("client disconnected : client alived time =  %u ms", millis() - clientStart);
   }
 }

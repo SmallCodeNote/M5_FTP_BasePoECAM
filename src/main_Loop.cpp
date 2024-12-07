@@ -10,22 +10,11 @@
 void TimeUpdateLoop(void *arg)
 {
   M5_LOGI("TimeUpdateLoop Start  ");
-  unsigned long lastepoc = 0;
 
   while (true)
   {
-    delay(200);
-    String timeLine = NtpClient.getTime(ntpSrvIP_String, +9);
-    if (lastepoc > NtpClient.currentEpoch)
-      lastepoc = 0;
-
-    if (lastepoc + 10 <= NtpClient.currentEpoch)
-    {
-      M5_LOGV("timeLine= %s", timeLine.c_str());
-      // M5.Log.println(("timeLine= " + timeLine).c_str());
-      lastepoc = NtpClient.currentEpoch;
-      M5_LOGV("");
-    }
+    delay(100);
+    NtpClient.updateCurrentEpoch();
   }
 
   vTaskDelete(NULL);
@@ -64,7 +53,7 @@ void ButtonKeepCountLoop(void *arg)
   {
     delay(100);
     PoECAM.update();
-    
+
     if (PoECAM.BtnA.pressedFor(6000))
     {
       M5_LOGI("Unit Initialize");
@@ -72,7 +61,8 @@ void ButtonKeepCountLoop(void *arg)
       break;
     }
 
-if(pushBeforeCheckSpan)M5_LOGI("pushBeforeCheckSpan = true");
+    if (pushBeforeCheckSpan)
+      M5_LOGI("pushBeforeCheckSpan = true");
     if (!pushBeforeCheckSpan && PoECAM.BtnA.pressedFor(200))
     {
       M5_LOGI("");
@@ -113,6 +103,7 @@ void ImageStoreLoop(void *arg)
 
   u_int8_t flashMode = storeData.flashIntensityMode;
   uint16_t flashLength = storeData.flashLength;
+
   while (true)
   {
     unsigned long currentEpoch = NtpClient.currentEpoch;
@@ -161,12 +152,16 @@ void ImageStoreLoop(void *arg)
         // M5_LOGI("");
         JpegItem jpegItem = {currentEpoch, frame_Jpeg, frame_len, pixmode, fb_width, fb_height};
 
-        if (uxQueueSpacesAvailable(xQueueJpeg_Src) < 1)
+        UBaseType_t Jpeg_Src_Aveilable = uxQueueSpacesAvailable(xQueueJpeg_Src);
+        // M5_LOGV("Jpeg_Src_Aveilable = %u", Jpeg_Src_Aveilable);
+        if (Jpeg_Src_Aveilable < 1)
         {
           JpegItem tempJpegItem;
           xQueueReceive(xQueueJpeg_Src, &tempJpegItem, 0);
           free(tempJpegItem.buf);
         }
+        Jpeg_Src_Aveilable = uxQueueSpacesAvailable(xQueueJpeg_Src);
+        // M5_LOGV("Jpeg_Src_Aveilable = %u", Jpeg_Src_Aveilable);
         xQueueSend(xQueueJpeg_Src, &jpegItem, 0);
       }
 
@@ -175,7 +170,7 @@ void ImageStoreLoop(void *arg)
       lastCheckEpoc = currentEpoch;
       nextBufferingEpoc = currentEpoch + storeData.imageBufferingInterval;
 
-      M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
+      //M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
       lastShotMillis = nowShotMillis;
     }
 
@@ -206,15 +201,12 @@ void ImageProcessingLoop(void *arg)
   while (true)
   {
     JpegItem jpegItem;
-    if (xQueueJpeg_Src != NULL)
-      M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
 
     while (xQueueJpeg_Src != NULL && xQueueReceive(xQueueJpeg_Src, &jpegItem, 0) == pdPASS)
     {
-
+      // M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
       uint8_t *bitmap_buf = (uint8_t *)ps_malloc(3 * jpegItem.width * jpegItem.height);
       fmt2rgb888(jpegItem.buf, jpegItem.len, jpegItem.pixformat, bitmap_buf);
-
       u_int16_t edgeX = ImageProcessingLoop_EdgePosition(bitmap_buf, jpegItem);
       u_int16_t edgeX_Last = edgeX;
 
@@ -321,10 +313,10 @@ void ImageProcessingLoop(void *arg)
       JpegItem jpegItem_Last = {jpegItem.epoc, frame_Jpeg_Last, jpegItem.len};
       xQueueSend(xQueueJpeg_Last, &jpegItem_Last, 0);
 
-      delay(1000);
+      delay(1);
     }
 
-    delay(1000);
+    delay(1);
   }
   vTaskDelete(NULL);
   M5_LOGE("");
@@ -408,6 +400,8 @@ void DataSaveLoop(void *arg)
     }
     else
     {
+      M5_LOGD("ftp is Connected.");
+
       JpegItem jpegItem;
       u_int16_t saveInterval = storeData.ftpImageSaveInterval;
       while (xQueueReceive(xQueueJpeg_Store, &jpegItem, 0))
@@ -466,6 +460,7 @@ void DataSaveLoop(void *arg)
       }
     }
 
+    Ethernet.maintain();
     delay(100);
   }
 
