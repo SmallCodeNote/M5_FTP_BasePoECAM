@@ -131,10 +131,13 @@ void ImageStoreLoop(void *arg)
     if (currentEpoch >= nextBufferingEpoc)
     {
       // M5_LOGI("");
-      digitalWrite(FLASH_EN_PIN, HIGH);
-      // delay(30);
-      // M5_LOGD("currentEpoch = %u, nextBufferingEpoc = %u", currentEpoch, nextBufferingEpoc);
-      delay(flashLength);
+      if (flashMode > 0)
+      {
+        digitalWrite(FLASH_EN_PIN, HIGH);
+        // delay(30);
+        // M5_LOGD("currentEpoch = %u, nextBufferingEpoc = %u", currentEpoch, nextBufferingEpoc);
+        delay(flashLength);
+      }
       nowShotMillis = millis();
       if (PoECAM.Camera.get())
       {
@@ -170,7 +173,7 @@ void ImageStoreLoop(void *arg)
       lastCheckEpoc = currentEpoch;
       nextBufferingEpoc = currentEpoch + storeData.imageBufferingInterval;
 
-      //M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
+      // M5_LOGI("shot interval = %u", nowShotMillis - lastShotMillis);
       lastShotMillis = nowShotMillis;
     }
 

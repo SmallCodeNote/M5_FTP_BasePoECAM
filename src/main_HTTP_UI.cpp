@@ -38,7 +38,7 @@ void HTTP_UI_JSON_sensorValueNow(EthernetClient client)
   HTTP_UI_PART_ResponceHeader(client, "application/json");
   client.print("{");
   client.print("\"distance\":");
-  if (xQueuePeek(xQueueEdge_Last, &edgeItem, 0))
+  if (xQueueEdge_Last != NULL && xQueuePeek(xQueueEdge_Last, &edgeItem, 0))
   {
     client.print(String(edgeItem.edgeX));
   }
@@ -46,7 +46,6 @@ void HTTP_UI_JSON_sensorValueNow(EthernetClient client)
   {
     client.print(String(-1));
   }
-  // client.print(String(SensorValueString.toInt()));
   client.println("}");
 }
 
@@ -63,11 +62,13 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
 {
   ProfItem profItem;
   EdgeItem edgeItem;
-  M5_LOGD("");
-  if (xQueueProf_Last != NULL && xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY) == pdPASS)
-  {
 
-    M5_LOGD("");
+  bool sw1 = xQueueProf_Last != NULL && uxQueueMessagesWaiting(xQueueProf_Last) > 0;
+  bool sw2 = xQueueEdge_Last != NULL && uxQueueMessagesWaiting(xQueueEdge_Last) > 0;
+
+  if (sw1 && sw2)
+  {
+    xQueueReceive(xQueueProf_Last, &profItem, portMAX_DELAY);
     xQueuePeek(xQueueEdge_Last, &edgeItem, portMAX_DELAY);
 
     HTTP_UI_PART_ResponceHeader(client, "application/json");
@@ -77,7 +78,7 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
     client.println(",");
     client.print("\"CameraLineValue\":[");
     client.printf("%u", profItem.buf[0]);
-    M5_LOGD("");
+
     for (size_t i = 1; i < profItem.len; i++)
     {
       client.printf(",%u", profItem.buf[i]);
@@ -89,15 +90,27 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient client)
     client.print("\"edgePoint\":");
     client.printf("%u", edgeItem.edgeX);
     client.println("}");
-    M5_LOGD("");
+
     free(profItem.buf);
   }
-  M5_LOGD("");
+  else
+  {
+    HTTP_UI_PART_ResponceHeader(client, "application/json");
+    client.print("{");
+    client.print("\"unitTime\":");
+    client.printf("\"%s\"", NtpClient.convertTimeEpochToString().c_str());
+    client.println(",");
+    client.print("\"CameraLineValue\":[0]");
+    client.println(",");
+
+    client.print("\"edgePoint\":");
+    client.print("0");
+    client.println("}");
+  }
 }
 
 uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
 {
-
   int32_t fb_width = (int32_t)((taskArgs.fb_width));
   int32_t fb_height = (int32_t)((taskArgs.fb_height));
   int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
@@ -135,11 +148,89 @@ uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JP
   return (uint16_t)x;
 }
 
+uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition_horizontalSearch(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
+{
+  int32_t fb_width = (int32_t)((taskArgs.fb_width));
+  int32_t fb_height = (int32_t)((taskArgs.fb_height));
+  int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
+  int32_t xEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
+  M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
+
+  int32_t xStartPix = (int32_t)((fb_width * xStartRate) / 100);
+  int32_t xEndPix = (int32_t)((fb_width * xEndRate) / 100);
+  M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
+
+  int32_t xStep = xStartPix < xEndPix ? 1 : -1;
+
+  int32_t startOffset = (fb_width * fb_height / 2) * 3;
+  uint8_t *bitmap_pix = bitmap_buf + startOffset;
+  int16_t br = 0;
+  int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
+  int32_t th = (int32_t)storeData.pixLineThrethold;
+
+  int32_t x = xStartPix;
+
+  for (; (xEndPix - x) * xStep > 0; x += xStep)
+  {
+    bitmap_pix = bitmap_buf + startOffset + x * 3;
+    br = 0;
+    br += *(bitmap_pix);
+    br += *(bitmap_pix + 1);
+    br += *(bitmap_pix + 2);
+    M5_LOGI("%d : %d / %d", x, br, th);
+    if ((th - br) * EdgeMode < 0)
+    {
+      return (uint16_t)x;
+    }
+  }
+
+  return (uint16_t)x;
+}
+
+uint16_t HTTP_UI_JSON_cameraLineNow_EdgePosition_verticalSearch(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
+{
+  int32_t fb_width = (int32_t)(taskArgs.fb_width);
+  int32_t fb_height = (int32_t)(taskArgs.fb_height);
+  int32_t yStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
+  int32_t yEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
+  M5_LOGI("yStartRate=%d , yEndRate=%d ", yStartRate, yEndRate);
+
+  int32_t yStartPix = (int32_t)((fb_height * yStartRate) / 100);
+  int32_t yEndPix = (int32_t)((fb_height * yEndRate) / 100);
+  M5_LOGI("yStartPix=%d , yEndPix=%d ", yStartPix, yEndPix);
+
+  int32_t yStep = yStartPix < yEndPix ? 1 : -1;
+
+  int32_t startOffset = (fb_width / 2) * 3;
+  uint8_t *bitmap_pix;
+  int16_t br = 0;
+  int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
+  int32_t th = (int32_t)storeData.pixLineThrethold;
+
+  int32_t y = yStartPix;
+
+  for (; (yEndPix - y) * yStep > 0; y += yStep)
+  {
+    bitmap_pix = bitmap_buf + startOffset + y * fb_width * 3;
+    br = 0;
+    br += *(bitmap_pix);
+    br += *(bitmap_pix + 1);
+    br += *(bitmap_pix + 2);
+    M5_LOGI("%d : %d / %d", y, br, th);
+    if ((th - br) * EdgeMode < 0)
+    {
+      return (uint16_t)y;
+    }
+  }
+
+  return (uint16_t)y;
+}
+/*
 void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
 {
   M5_LOGI("");
   JpegItem jpegItem;
-  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
+  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, 0) == pdPASS)
   {
     client.println("HTTP/1.1 200 OK");
     client.println("Content-Type: image/jpeg");
@@ -166,9 +257,17 @@ void HTTP_UI_JPEG_cameraLineNow(EthernetClient client)
     free(jpegItem.buf);
     M5_LOGI("");
   }
+  else
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+    }
   // client.stop();
 }
-
+*/
 void HTTP_UI_JPEG_STORE_Task(void *arg)
 {
   M5_LOGD("");
@@ -207,6 +306,48 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
 {
   M5_LOGI("");
   JpegItem jpegItem;
+  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, 0) == pdPASS)
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+
+    int32_t to_sends = jpegItem.len;
+    uint8_t *out_buf = jpegItem.buf;
+
+    int32_t now_sends = 0;
+    uint32_t packet_len = 1 * 1024;
+
+    while (to_sends > 0)
+    {
+      now_sends = to_sends > packet_len ? packet_len : to_sends;
+      if (client.write(out_buf, now_sends) == 0)
+      {
+        break;
+      }
+      out_buf += now_sends;
+      to_sends -= now_sends;
+    }
+    free(jpegItem.buf);
+    M5_LOGI("");
+  }
+  else
+  {
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: image/jpeg");
+    client.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
+    client.println("Access-Control-Allow-Origin: *");
+    client.println();
+  }
+  // client.stop();
+}
+/*
+void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
+{
+  M5_LOGI("");
+  JpegItem jpegItem;
   if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
   {
     client.println("HTTP/1.1 200 OK");
@@ -236,7 +377,8 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient client)
   }
   // client.stop();
 }
-
+*/
+/*
 uint8_t *HTTP_UI_JPEG_flashTestJPEG;
 int32_t HTTP_UI_JPEG_flashTestJPEG_len;
 void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
@@ -268,6 +410,7 @@ void HTTP_UI_JPEG_flashTestImage(EthernetClient client)
   // client.stop();
   M5_LOGI("");
 }
+*/
 
 void HTTP_UI_STREAM_JPEG(EthernetClient client)
 {
@@ -495,7 +638,7 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient client)
   client.printf("    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
   client.println("");
   client.println("  };");
-  client.println("  img.src = '/cameraLineNow.jpg?' + new Date().getTime();"); // add timestamp
+  client.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
   client.println("}");
 
   client.println("function update() {");
@@ -1085,6 +1228,7 @@ void HTTP_UI_POST_configTime(EthernetClient client)
   return;
 }
 
+/*
 void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
 {
   M5_LOGD("");
@@ -1108,7 +1252,7 @@ void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
   }
   vTaskDelete(NULL);
 }
-
+*/
 void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
 {
   String currentLine = "";
@@ -1123,33 +1267,50 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
     currentLine += c;
   }
 
-  String flashSwitchStatus = "OFF";
-  String flashBrightnessStatus = "0";
-  String flashTestLength = "10";
+  // String flashSwitchStatus = "OFF";
+  String flashBrightnessStatus = flashIntensityMode;
+  String flashTestLength = flashLength;
 
-  HTTP_GET_PARAM_FROM_POST(flashSwitchStatus);
+  // HTTP_GET_PARAM_FROM_POST(flashSwitchStatus);
   HTTP_GET_PARAM_FROM_POST(flashBrightnessStatus);
   HTTP_GET_PARAM_FROM_POST(flashTestLength);
+
+  if (flashBrightnessStatus.length() < 1)
+  {
+    flashBrightnessStatus = String(storeData.flashIntensityMode);
+  }
+  
+  if (flashTestLength.length() < 1)
+  {
+    flashTestLength = String(storeData.flashLength);
+  }
+
   uint8_t brightness_u = flashBrightnessStatus.toInt();
-  uint32_t flashTestLength_u = flashTestLength.toInt();
+  uint16_t flashTestLength_u = flashTestLength.toInt();
 
-  if (flashSwitchStatus == "ON")
-  {
-    M5_LOGW("FlashON: %u", brightness_u);
-    unit_flash_set_brightness(brightness_u);
-    digitalWrite(FLASH_EN_PIN, HIGH);
+  M5_LOGD("%s, %u", flashTestLength, flashTestLength_u);
 
-    delay(30);
-    xTaskCreatePinnedToCore(HTTP_UI_PAGE_flashSwitch_Task, "HTTP_UI_PAGE_flashSwitch_Task", 4096, NULL, 0, NULL, 0);
-    delay(flashTestLength_u);
+  storeData.flashIntensityMode = brightness_u;
+  storeData.flashLength = flashTestLength_u;
+  delay(storeData.imageBufferingInterval);
+  /*
+    if (flashSwitchStatus == "ON")
+    {
+      M5_LOGW("FlashON: %u", brightness_u);
+      unit_flash_set_brightness(brightness_u);
+      // digitalWrite(FLASH_EN_PIN, HIGH);
 
-    digitalWrite(FLASH_EN_PIN, LOW);
-  }
-  else
-  {
-    M5_LOGW("FlashOFF");
-  }
+      // delay(30);
+      // xTaskCreatePinnedToCore(HTTP_UI_PAGE_flashSwitch_Task, "HTTP_UI_PAGE_flashSwitch_Task", 4096, NULL, 0, NULL, 0);
+      // delay(flashTestLength_u);
 
+      // digitalWrite(FLASH_EN_PIN, LOW);
+    }
+    else
+    {
+      M5_LOGW("FlashOFF");
+    }
+  */
   HTTP_UI_PART_ResponceHeader(client, "text/html");
   HTTP_UI_PART_HTMLHeader(client);
 
@@ -1160,8 +1321,8 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
   client.println("<ul>");
 
   currentLine = "";
-  flashSwitchStatus = "ON";
-  HTML_PUT_LI_INPUT(flashSwitchStatus);
+  // flashSwitchStatus = "ON";
+  // HTML_PUT_LI_INPUT(flashSwitchStatus);
   HTML_PUT_LI_INPUT(flashTestLength);
 
   String optionString = " selected";
@@ -1198,13 +1359,16 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient client)
   client.println("<br />");
   client.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
-  if (HTTP_UI_JPEG_flashTestJPEG_len > 0)
-  {
-    client.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
-  }
-
+  client.printf("<img src=\"/sensorImageNow.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
+  /*
+    if (HTTP_UI_JPEG_flashTestJPEG_len > 0)
+    {
+      client.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
+    }
+  */
   HTTP_UI_PART_HTMLFooter(client);
 }
+
 String urlDecode(String input)
 {
   String decoded = "";
@@ -1241,9 +1405,9 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "sensorValueNow.json", HTTP_UI_JSON_sensorValueNow},
     {HTTP_UI_MODE_GET, "unitTimeNow.json", HTTP_UI_JSON_unitTimeNow},
     {HTTP_UI_MODE_GET, "cameraLineNow.json", HTTP_UI_JSON_cameraLineNow},
-    {HTTP_UI_MODE_GET, "cameraLineNow.jpg", HTTP_UI_JPEG_cameraLineNow},
+    //    {HTTP_UI_MODE_GET, "cameraLineNow.jpg", HTTP_UI_JPEG_cameraLineNow},
     {HTTP_UI_MODE_GET, "sensorImageNow.jpg", HTTP_UI_JPEG_sensorImageNow},
-    {HTTP_UI_MODE_GET, "flashTestImage.jpg", HTTP_UI_JPEG_flashTestImage},
+    //    {HTTP_UI_MODE_GET, "flashTestImage.jpg", HTTP_UI_JPEG_flashTestImage},
     {HTTP_UI_MODE_GET, "view.html", HTTP_UI_PAGE_view},
     {HTTP_UI_MODE_GET, "chart.js", HTTP_UI_JS_ChartJS},
     {HTTP_UI_MODE_GET, "chart.html", HTTP_UI_PAGE_chart},
@@ -1349,7 +1513,7 @@ void HTTP_UI()
           currentLineIsBlank = false, currentLine += c;
         }
 
-        //bmillis2 = millis() - millis0;
+        // bmillis2 = millis() - millis0;
 
         if (!currentLineHaveEnoughLength && currentLine.length() > 6)
         {
@@ -1378,12 +1542,12 @@ void HTTP_UI()
             }
           }
         }
-        //bmillis3 = millis() - millis0;
+        // bmillis3 = millis() - millis0;
       }
 
       if (millis0 - millis1 >= 500)
       {
-        //M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
+        // M5_LOGE("%s : %u - %u, %u, %u", currentLine.c_str(), millis0 - millis1, bmillis1, bmillis2, bmillis3);
         M5_LOGE("%s : %u", currentLine.c_str(), millis0 - millis1);
       }
       millis1 = millis0;

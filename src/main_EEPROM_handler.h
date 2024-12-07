@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 512                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x58
+#define EEPROM_CHECK_CODE 0x59
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -38,6 +38,8 @@ struct DATA_SET
     uint8_t pixLineEdgeSearchEnd;   // [0-100%]
     uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
     uint16_t pixLineThrethold;      //[0-765]
+    uint8_t pixLineAngle;           //[0-90deg 0:horizontal 90:vertical]
+
 
     // Sensor values
     pixformat_t pixformat;
@@ -114,6 +116,7 @@ extern String pixLineEdgeSearchStart; //[0-100%]
 extern String pixLineEdgeSearchEnd;   // [0-100%]
 extern String pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
 extern String pixLineThrethold;       //[0-765]
+extern String pixLineAngle;           //[0-90deg 0:horizontal 90:vertical]
 
 extern String pixformat;
 extern String framesize;
