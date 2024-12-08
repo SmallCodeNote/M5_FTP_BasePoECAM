@@ -21,14 +21,16 @@ String timeZoneOffset = "9";
 String flashIntensityMode = "6";
 String flashLength = "60";
 
-String pixLineStep = "0";   //[px  0 - ]
-String pixLineRange = "50"; //[%]
+String pixLineStep = "0";      //[px  0 - ]
+String pixLineRange = "50";    //[%]
+String pixLineAngle = "0";     //[0-90deg 0:horizontal 90:vertical]
+String pixLineShiftUp = "0";   //[0-255 (px)]
+String pixLineSideWidth = "0"; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
 String pixLineEdgeSearchStart = "25"; //[0-100%]
 String pixLineEdgeSearchEnd = "75";   // [0-100%]
 String pixLineEdgeUp = "2";           // 1: dark -> light / 2: light -> dark
 String pixLineThrethold = "384";      //[0-765]
-String pixLineAngle = "0";            //[0-90deg 0:horizontal 90:vertical]
 
 String pixformat = "4"; // 0:RGB565, 1:YUV422, 2:YUV420, 3:GRAYSCALE, 4:JPEG, 5:RGB888, 6:RAW, 7:RGB444, 8:RGB555
 String framesize = "5"; // 0:96X96(96x96), 1:QQVGA(160x120), 2:QCIF(176x144), 3:HQVGA(240x176), 4:240X240(240x240), 5:QVGA(320x240), 6:CIF(400x296), 7:HVGA(480x320), 8:VGA(640x480), 9:SVGA(800x600), 10:XGA(1024x768), 11:HD(1280x720), 12:SXGA(1280x1024), 13:UXGA(1600x1200), 14:FHD(1920x1080), 15:P_HD(720x1280), 16:P_3MP(864x1536), 17:QXGA(2048x1536), 18:QHD(2560x1440), 19:WQXGA(2560x1600), 20:P_FHD(1080x1920), 21:QSXGA(2560x1920)
@@ -87,14 +89,16 @@ void InitEEPROM()
     flashIntensityMode = "6";
     flashLength = "60";
 
-    pixLineStep = "0";   //[px  0 - ]
-    pixLineRange = "50"; //[%]
+    pixLineStep = "0";      //[px  0 - ]
+    pixLineRange = "50";    //[%]
+    pixLineAngle = "0";     //[0-90deg 0:horizontal 90:vertical]
+    pixLineShiftUp = "0";   //[0-255 (px)]
+    pixLineSideWidth = "0"; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
     pixLineEdgeSearchStart = "25"; //[0-100%]
     pixLineEdgeSearchEnd = "75";   // [0-100%]
     pixLineEdgeUp = "2";           // 1: dark -> light / 2: light -> dark
     pixLineThrethold = "384";      //[0-765]
-    pixLineAngle = "0";            //[0-90deg 0:horizontal 90:vertical]
 
     pixformat = "4"; // 4:JPEG
     framesize = "5"; // 5:QVGA(320x240)
@@ -220,12 +224,14 @@ void SetStringsFromStoreData()
 
     pixLineStep = String(storeData.pixLineStep);
     pixLineRange = String(storeData.pixLineRange);
+    pixLineAngle = String(storeData.pixLineAngle);         //[0-90deg 0:horizontal 90:vertical]
+    pixLineShiftUp = String(storeData.pixLineShiftUp);     //[0-255 (px)]
+    pixLineSideWidth = String(storeData.pixLineSideWidth); //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
     pixLineEdgeSearchStart = String(storeData.pixLineEdgeSearchStart); //[0-100%]
     pixLineEdgeSearchEnd = String(storeData.pixLineEdgeSearchEnd);     // [0-100%]
     pixLineEdgeUp = String(storeData.pixLineEdgeUp);                   // 1: dark -> light / 2: light -> dark
     pixLineThrethold = String(storeData.pixLineThrethold);             //[0-765]
-    pixLineAngle = String(storeData.pixLineAngle);                     //[0-90deg 0:horizontal 90:vertical]
 
     pixformat = String(storeData.pixformat);
     framesize = String(storeData.framesize);
@@ -290,15 +296,14 @@ void SetStoreDataFromStrings()
 
     storeData.pixLineStep = (int8_t)(pixLineStep.toInt());
     storeData.pixLineRange = (int8_t)(pixLineRange.toInt());
-
-    storeData.pixLineStep = (uint8_t)(pixLineStep.toInt());
-    storeData.pixLineRange = (uint8_t)(pixLineRange.toInt());
+    storeData.pixLineAngle = (uint8_t)(pixLineAngle.toInt());
+    storeData.pixLineShiftUp = (uint8_t)(pixLineShiftUp.toInt());
+    storeData.pixLineSideWidth = (uint8_t)(pixLineSideWidth.toInt());
 
     storeData.pixLineEdgeSearchStart = (uint8_t)(pixLineEdgeSearchStart.toInt());
     storeData.pixLineEdgeSearchEnd = (uint8_t)(pixLineEdgeSearchEnd.toInt());
     storeData.pixLineEdgeUp = (uint8_t)(pixLineEdgeUp.toInt());
     storeData.pixLineThrethold = (uint16_t)(pixLineThrethold.toInt());
-    storeData.pixLineAngle = (uint8_t)(pixLineAngle.toInt());
 
     storeData.pixformat = static_cast<pixformat_t>(pixformat.toInt());
     storeData.framesize = static_cast<framesize_t>(framesize.toInt());

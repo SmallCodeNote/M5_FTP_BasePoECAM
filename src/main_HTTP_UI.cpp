@@ -1451,13 +1451,13 @@ void sendPage(EthernetClient httpClient, String page)
 
 void HTTP_UI()
 {
-
   EthernetClient httpClient = HttpUIServer.available();
-  if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+  if (httpClient)
   {
-    if (httpClient)
+    if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
     {
       M5_LOGD("mutex take success");
+
       unsigned long millis0 = millis();
       unsigned long millis1 = millis0;
 
@@ -1559,12 +1559,13 @@ void HTTP_UI()
 
       M5_LOGI("httpClient disconnected : httpClient alived time =  %u ms", millis() - clientStart);
       M5_LOGI("loopCount =  %u ,charCount = %u", loopCount, charCount);
-    }
 
-    xSemaphoreGive(mutex_Ethernet);
-  }
-  else
-  {
-    M5_LOGW("mutex can not take");
+      xSemaphoreGive(mutex_Ethernet);
+      M5_LOGI("mutex give");
+    }
+    else
+    {
+      M5_LOGW("mutex can not take");
+    }
   }
 }

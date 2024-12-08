@@ -380,13 +380,20 @@ void HTTPLoop(void *arg)
   while (true)
   {
     HTTP_UI();
+    /*
+        if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
+        {
+          M5_LOGD("Ethernet.maintain();");
+          Ethernet.maintain();
+          xSemaphoreGive(mutex_Ethernet);
+                  M5_LOGI("mutex give");
 
-    if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
-    {
-      Ethernet.maintain();
-      xSemaphoreGive(mutex_Ethernet);
-    }
-
+        }
+        else
+        {
+          M5_LOGW("mutex can not take.");
+        }
+    */
     delay(10);
   }
   vTaskDelete(NULL);
@@ -421,11 +428,15 @@ void DataSaveLoop(void *arg)
 
       if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
       {
+        M5_LOGD("mutex take");
         ftp.OpenConnection();
+        M5_LOGI("ftp.OpenConnection() finished.");
         xSemaphoreGive(mutex_Ethernet);
+        M5_LOGI("mutex give");
       }
       else
       {
+        M5_LOGW("mutex can not take.");
       }
 
       delay(1000);
@@ -453,12 +464,16 @@ void DataSaveLoop(void *arg)
 
           if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
           {
+            M5_LOGD("mutex take");
+
             ftp.MakeDirRecursive(directoryPath);
             ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
             xSemaphoreGive(mutex_Ethernet);
+            M5_LOGI("mutex give");
           }
           else
           {
+            M5_LOGW("mutex can not take.");
           }
         }
         free(jpegItem.buf);
@@ -479,12 +494,16 @@ void DataSaveLoop(void *arg)
 
           if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
           {
+            M5_LOGD("mutex take");
+
             ftp.MakeDirRecursive(directoryPath);
             ftp.AppendTextLine(filePath + ".csv", testLine);
             xSemaphoreGive(mutex_Ethernet);
+            M5_LOGI("mutex give");
           }
           else
           {
+            M5_LOGW("mutex can not take.");
           }
         }
       }
@@ -504,12 +523,16 @@ void DataSaveLoop(void *arg)
 
           if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
           {
+            M5_LOGD("mutex take");
+
             ftp.MakeDirRecursive(directoryPath);
             ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
             xSemaphoreGive(mutex_Ethernet);
+            M5_LOGI("mutex give");
           }
           else
           {
+            M5_LOGW("mutex can not take.");
           }
         }
         free(profItem.buf);
@@ -518,8 +541,16 @@ void DataSaveLoop(void *arg)
 
     if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
     {
+      M5_LOGD("mutex take");
+
+      M5_LOGD("Ethernet.maintain();");
       Ethernet.maintain();
       xSemaphoreGive(mutex_Ethernet);
+      M5_LOGI("mutex give");
+    }
+    else
+    {
+      M5_LOGW("mutex can not take.");
     }
 
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
@@ -531,11 +562,15 @@ void DataSaveLoop(void *arg)
   {
     if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
     {
+      M5_LOGD("mutex take");
+
       ftp.CloseConnection();
       xSemaphoreGive(mutex_Ethernet);
+      M5_LOGI("mutex give");
     }
     else
     {
+      M5_LOGW("mutex can not take.");
     }
   }
   vTaskDelete(NULL);

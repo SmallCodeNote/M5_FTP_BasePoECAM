@@ -39,9 +39,10 @@ SOFTWARE.
 
 #define FTP_PORT 21
 #define FTP_BUFFER_SIZE 1500
-#define FTP_TIMEOUT_MS 10000UL
+#define FTP_TIMEOUT_MS 3000UL
 #define FTP_ENTERING_PASSIVE_MODE 227
 
+#define FTP_RESCODE_SERVER_ISNOT_FOUND 404
 #define FTP_RESCODE_CLIENT_ISNOT_CONNECTED 426
 #define FTP_RESCODE_DATA_CONNECTION_ERROR 425
 #define FTP_RESCODE_ACTION_SUCCESS 200 // The requested action has been successfully.
@@ -101,6 +102,8 @@ private:
     bool isErrorCode(uint16_t responseCode);
 
     std::vector<String> SplitPath(const String &path);
+
+    unsigned long nextConnectionCheckMillis=0;
 
 public:
     //    M5_Ethernet_FtpClient(char *_serverAdress, uint16_t _port, char *_userName, char *_passWord, uint16_t _timeout = 10000);

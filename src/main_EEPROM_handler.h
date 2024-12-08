@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 512                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x59
+#define EEPROM_CHECK_CODE 0x60
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -23,23 +23,24 @@ struct DATA_SET
     u_int16_t ftpEdgeSaveInterval;
     u_int16_t ftpProfileSaveInterval;
 
-    u_int16_t imageBufferingEpochInterval;//[1- (sec.)]
+    u_int16_t imageBufferingEpochInterval; //[1- (sec.)]
 
-    u_int16_t chartUpdateInterval;//[ms]
+    u_int16_t chartUpdateInterval; //[ms]
     u_int16_t chartShowPointCount;
     int8_t timeZoneOffset;
     u_int8_t flashIntensityMode;
     u_int16_t flashLength; //[1- (ms)]
 
-    uint8_t pixLineStep;
-    uint8_t pixLineRange;
+    uint8_t pixLineStep;      //[0-255 (px)]
+    uint8_t pixLineRange;     //[0-100%]
+    uint8_t pixLineAngle;     //[0-90(deg) 0:horizontal 90:vertical]
+    uint8_t pixLineShiftUp;   //[0-255 (px)]
+    uint8_t pixLineSideWidth; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
     uint8_t pixLineEdgeSearchStart; //[0-100%]
     uint8_t pixLineEdgeSearchEnd;   // [0-100%]
     uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
     uint16_t pixLineThrethold;      //[0-765]
-    uint8_t pixLineAngle;           //[0-90(deg) 0:horizontal 90:vertical]
-
 
     // Sensor values
     pixformat_t pixformat;
@@ -100,7 +101,6 @@ extern String ftpProfileSaveInterval;
 
 extern String imageBufferingEpochInterval;
 
-
 extern String chartUpdateInterval;
 extern String chartShowPointCount;
 
@@ -109,14 +109,16 @@ extern String timeZoneOffset;
 extern String flashIntensityMode;
 extern String flashLength;
 
-extern String pixLineStep;
-extern String pixLineRange;
+extern String pixLineStep;      //[0-255 (px)]
+extern String pixLineRange;     //[0-100%]
+extern String pixLineAngle;     //[0-90deg 0:horizontal 90:vertical]
+extern String pixLineShiftUp;   //[0-255 (px)]
+extern String pixLineSideWidth; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
 extern String pixLineEdgeSearchStart; //[0-100%]
 extern String pixLineEdgeSearchEnd;   // [0-100%]
 extern String pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
 extern String pixLineThrethold;       //[0-765]
-extern String pixLineAngle;           //[0-90deg 0:horizontal 90:vertical]
 
 extern String pixformat;
 extern String framesize;

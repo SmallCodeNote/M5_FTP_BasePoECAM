@@ -128,16 +128,28 @@ bool M5_Ethernet_FtpClient::isErrorCode(uint16_t responseCode)
  */
 uint16_t M5_Ethernet_FtpClient::OpenConnection()
 {
+  if (nextConnectionCheckMillis > millis())
+  {
+    FTP_LOGINFO1(F("not found server wait: "), serverAdress);
+    return FTP_RESCODE_SERVER_ISNOT_FOUND;
+  }
+
   int responceCode = FTP_RESCODE_ACTION_SUCCESS;
   FTP_LOGINFO1(F("Connecting to: "), serverAdress);
 
 #if ((ESP32) && !FTP_CLIENT_USING_ETHERNET)
-  if (client.connect(serverAdress, port, timeout))
+  if (ftpClient.connect(serverAdress, port, timeout))
 #else
   if (ftpClient.connect(serverAdress.c_str(), port))
 #endif
   {
     FTP_LOGINFO(F("Command connected"));
+  }
+  else
+  {
+    nextConnectionCheckMillis = millis() + 20000UL;
+    FTP_LOGINFO1(F("not found server : "), serverAdress);
+    return FTP_RESCODE_SERVER_ISNOT_FOUND;
   }
 
   responceCode = GetCmdAnswer();
