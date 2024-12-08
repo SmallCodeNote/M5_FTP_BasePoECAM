@@ -27,7 +27,6 @@ unsigned long SensorShotStartOffset();
 
 void ImageStoreLoop(void *arg);
 void ImageProcessingLoop(void *arg);
-//uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs);
 uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem);
 void DataSaveLoop(void *arg);
 

@@ -112,127 +112,6 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
     M5_LOGW("sw1 = %d, sw2 = %d, maxWait = %d", sw1, sw2, maxWait);
   }
 }
-/*
-uint16_t HTTP_UI_FUNC_cameraLineNow_EdgePosition(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
-{
-  int32_t fb_width = (int32_t)((taskArgs.fb_width));
-  int32_t fb_height = (int32_t)((taskArgs.fb_height));
-  int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
-  int32_t xEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
-  M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
-
-  int32_t xStartPix = (int32_t)((fb_width * xStartRate) / 100);
-  int32_t xEndPix = (int32_t)((fb_width * xEndRate) / 100);
-  M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
-
-  int32_t xStep = xStartPix < xEndPix ? 1 : -1;
-
-  int32_t startOffset = (fb_width * fb_height / 2) * 3;
-  uint8_t *bitmap_pix = bitmap_buf + startOffset;
-  int16_t br = 0;
-  int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
-  int32_t th = (int32_t)storeData.pixLineThrethold;
-
-  int32_t x = xStartPix;
-
-  for (; (xEndPix - x) * xStep > 0; x += xStep)
-  {
-    bitmap_pix = bitmap_buf + startOffset + x * 3;
-    br = 0;
-    br += *(bitmap_pix);
-    br += *(bitmap_pix + 1);
-    br += *(bitmap_pix + 2);
-    M5_LOGI("%d : %d / %d", x, br, th);
-    if ((th - br) * EdgeMode < 0)
-    {
-      return (uint16_t)x;
-    }
-  }
-
-  return (uint16_t)x;
-}
-
-u_int16_t channelSum(uint8_t *bitmap_pix)
-{
-  uint8_t rgb[3];
-  memcpy(rgb, bitmap_pix, 3);
-  uint16_t r = rgb[0];
-  uint16_t g = rgb[1];
-  uint16_t b = rgb[2];
-  return r + g + b;
-}
-
-uint16_t HTTP_UI_FUNC_cameraLineNow_EdgePosition_horizontalSearch(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
-{
-  int32_t fb_width = (int32_t)((taskArgs.fb_width));
-  int32_t fb_height = (int32_t)((taskArgs.fb_height));
-  int32_t xStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
-  int32_t xEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
-  M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
-
-  int32_t xStartPix = (int32_t)((fb_width * xStartRate) / 100);
-  int32_t xEndPix = (int32_t)((fb_width * xEndRate) / 100);
-  M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
-
-  int16_t br = 0;
-  int16_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
-  int16_t th = (int16_t)storeData.pixLineThrethold;
-
-  int32_t startOffset = (fb_width * fb_height / 2) * 3;
-  uint8_t *bitmap_pix = bitmap_buf + startOffset;
-
-  int32_t xStep = xStartPix < xEndPix ? 1 : -1;
-  int32_t x = xStartPix;
-  for (; (xEndPix - x) * xStep > 0; x += xStep)
-  {
-    bitmap_pix = bitmap_buf + startOffset + x * 3;
-    br = channelSum(bitmap_pix);
-    if ((th - br) * EdgeMode < 0)
-    {
-      M5_LOGI("%d : %d / %d", x, br, th);
-      return (uint16_t)x;
-    }
-  }
-
-  return (uint16_t)x;
-}
-
-uint16_t HTTP_UI_FUNC_cameraLineNow_EdgePosition_verticalSearch(uint8_t *bitmap_buf, HTTP_UI_JPEG_STORE_TaskArgs taskArgs)
-{
-  int32_t fb_width = (int32_t)(taskArgs.fb_width);
-  int32_t fb_height = (int32_t)(taskArgs.fb_height);
-  int32_t yStartRate = (int32_t)(storeData.pixLineEdgeSearchStart);
-  int32_t yEndRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
-  M5_LOGI("yStartRate=%d , yEndRate=%d ", yStartRate, yEndRate);
-
-  int32_t yStartPix = (int32_t)((fb_height * yStartRate) / 100);
-  int32_t yEndPix = (int32_t)((fb_height * yEndRate) / 100);
-  M5_LOGI("yStartPix=%d , yEndPix=%d ", yStartPix, yEndPix);
-
-  int32_t startOffset = (fb_width / 2) * 3;
-  uint8_t *bitmap_pix;
-
-  int16_t br = 0;
-  int16_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
-  int16_t th = (int32_t)storeData.pixLineThrethold;
-
-  int32_t yStep = yStartPix < yEndPix ? 1 : -1;
-  int32_t y = yStartPix;
-  for (; (yEndPix - y) * yStep > 0; y += yStep)
-  {
-    bitmap_pix = bitmap_buf + startOffset + y * fb_width * 3;
-    br = channelSum(bitmap_pix);
-
-    if ((th - br) * EdgeMode < 0)
-    {
-      M5_LOGI("%d : %d / %d", y, br, th);
-      return (uint16_t)y;
-    }
-  }
-
-  return (uint16_t)y;
-}
-*/
 
 void HTTP_UI_JPEG_STORE_Task(void *arg)
 {
@@ -309,74 +188,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
   }
   // httpClient.stop();
 }
-/*
-void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
-{
-  M5_LOGI("");
-  JpegItem jpegItem;
-  if (xQueueJpeg_Last != NULL && xQueueReceive(xQueueJpeg_Last, &jpegItem, portMAX_DELAY) == pdPASS)
-  {
-    httpClient.println("HTTP/1.1 200 OK");
-    httpClient.println("Content-Type: image/jpeg");
-    httpClient.println("Content-Disposition: inline; filename=sensorImageNow.jpg");
-    httpClient.println("Access-Control-Allow-Origin: *");
-    httpClient.println();
 
-    int32_t to_sends = jpegItem.len;
-    uint8_t *out_buf = jpegItem.buf;
-
-    int32_t now_sends = 0;
-    uint32_t packet_len = 1 * 1024;
-
-    while (to_sends > 0)
-    {
-      now_sends = to_sends > packet_len ? packet_len : to_sends;
-      if (httpClient.write(out_buf, now_sends) == 0)
-      {
-        break;
-      }
-      out_buf += now_sends;
-      to_sends -= now_sends;
-    }
-    free(jpegItem.buf);
-    M5_LOGI("");
-  }
-  // httpClient.stop();
-}
-*/
-/*
-uint8_t *HTTP_UI_JPEG_flashTestJPEG;
-int32_t HTTP_UI_JPEG_flashTestJPEG_len;
-void HTTP_UI_JPEG_flashTestImage(EthernetClient httpClient)
-{
-  M5_LOGI("");
-
-  httpClient.println("HTTP/1.1 200 OK");
-  httpClient.println("Content-Type: image/jpeg");
-  httpClient.println("Content-Disposition: inline; filename=flashTestImage.jpg");
-  httpClient.println("Access-Control-Allow-Origin: *");
-  httpClient.println();
-
-  uint32_t packet_len = 1 * 1024;
-  int32_t now_sends = 0;
-  int32_t to_sends = HTTP_UI_JPEG_flashTestJPEG_len;
-  uint8_t *out_buf = HTTP_UI_JPEG_flashTestJPEG;
-
-  while (to_sends > 0)
-  {
-    now_sends = to_sends > packet_len ? packet_len : to_sends;
-    if (httpClient.write(out_buf, now_sends) == 0)
-    {
-      break;
-    }
-    out_buf += now_sends;
-    to_sends -= now_sends;
-  }
-
-  // httpClient.stop();
-  M5_LOGI("");
-}
-*/
 
 void HTTP_UI_STREAM_JPEG(EthernetClient httpClient)
 {
@@ -510,118 +322,6 @@ void HTTP_UI_PAGE_view(EthernetClient httpClient)
 
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
-/*
-void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
-{
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
-
-  httpClient.println("<h1>Camera Line View</h1>");
-
-  httpClient.println("<ul id=\"valueLabel\">");
-  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  httpClient.println("<li>edgePoint: <span id=\"edgePoint\"></span></li>");
-  httpClient.println("</ul>");
-
-  httpClient.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
-
-  httpClient.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
-
-  httpClient.println("<script src=\"/chart.js\"></script>");
-
-  httpClient.println("<script>");
-  httpClient.println("var chart = null;");
-
-  httpClient.println("function fetchCameraLineData() {");
-  httpClient.println("  var xhr = new XMLHttpRequest();");
-  httpClient.println("  xhr.onreadystatechange = function() {");
-  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  httpClient.println("      var data = JSON.parse(xhr.responseText);");
-  httpClient.println("      updateChart(data.CameraLineValue);");
-  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  httpClient.println("      document.getElementById('edgePoint').innerText = data.edgePoint;");
-  httpClient.println("    }");
-  httpClient.println("  };");
-  httpClient.println("  xhr.open('GET', '/cameraLineNow.json', true);");
-  httpClient.println("  xhr.send();");
-  httpClient.println("}");
-
-  httpClient.println("function updateChart(data) {");
-  httpClient.println("  var ctx = document.getElementById('cameraLineChart').getContext('2d');");
-
-  httpClient.println("  if (chart) {");
-  httpClient.println("    chart.destroy();");
-  httpClient.println("  }");
-
-  httpClient.println("  chart = new Chart(ctx, {");
-  httpClient.println("    type: 'line',");
-  httpClient.println("    data: {");
-  httpClient.println("      labels: data.map((_, index) => index),");
-  httpClient.println("      datasets: [{");
-  httpClient.println("        label: 'Camera Line Data',");
-  httpClient.println("        data: data,");
-  httpClient.println("        borderColor: 'rgba(75, 192, 192, 1)',");
-  httpClient.println("        borderWidth: 1,");
-  httpClient.println("        fill: false");
-  httpClient.println("      }]");
-  httpClient.println("    },");
-  httpClient.println("    options: {");
-  httpClient.println("      animation: false,");
-  httpClient.println("      scales: {");
-  httpClient.println("        x: {");
-  httpClient.println("          type: 'linear',");
-  httpClient.println("          position: 'bottom'");
-  httpClient.println("        },");
-  httpClient.println("        y: {");
-  httpClient.println("          type: 'linear',");
-  httpClient.println("          position: 'right'");
-  //  httpClient.println("          display: false");
-  httpClient.println("        }");
-  httpClient.println("      },");
-  httpClient.println("      plugins: {");
-  httpClient.println("        legend: {");
-  httpClient.println("          display: false");
-  httpClient.println("        }");
-  httpClient.println("      }");
-  httpClient.println("    }");
-  httpClient.println("  });");
-  httpClient.println("}");
-
-  uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
-  uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
-  uint32_t x1 = (uint32_t)((iWidth * (100 - storeData.pixLineRange)) / 200);
-  uint32_t xw = (uint32_t)((iWidth * storeData.pixLineRange) / 100);
-  uint32_t y1 = (uint32_t)((iHeight) / 2) - 1;
-
-  httpClient.println("function refreshImage() {");
-  httpClient.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
-  httpClient.println("  var img = new Image();");
-  httpClient.println("  img.onload = function() {");
-  httpClient.println("    var canvas = document.getElementById('cameraImage');");
-  httpClient.println("    canvas.height = img.height * (canvas.width / img.width);");
-  httpClient.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
-  httpClient.println("    ctx.strokeStyle = 'red';");
-  httpClient.println("    ctx.lineWidth = 1;");
-  httpClient.printf("    ctx.strokeRect(%u * (canvas.width / img.width), %u * (canvas.height / img.height), %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
-  httpClient.println("");
-  httpClient.println("  };");
-  httpClient.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
-  httpClient.println("}");
-
-  httpClient.println("function update() {");
-  httpClient.println("  refreshImage();");
-  httpClient.println("  fetchCameraLineData();");
-  httpClient.println("}");
-
-  httpClient.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
-  httpClient.println("update();");
-  httpClient.println("</script>");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}*/
 
 void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
 {
@@ -1458,31 +1158,6 @@ void HTTP_UI_POST_configTime(EthernetClient httpClient)
   return;
 }
 
-/*
-void HTTP_UI_PAGE_flashSwitch_Task(void *arg)
-{
-  M5_LOGD("");
-  HTTP_UI_JPEG_flashTestJPEG_len = 0;
-  if (PoECAM.Camera.get())
-  {
-    int32_t frame_len = PoECAM.Camera.fb->len;
-    uint8_t *frame_buf = PoECAM.Camera.fb->buf;
-    pixformat_t pixmode = PoECAM.Camera.fb->format;
-    u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
-    u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
-
-    if (!HTTP_UI_JPEG_flashTestJPEG)
-      free(HTTP_UI_JPEG_flashTestJPEG);
-
-    HTTP_UI_JPEG_flashTestJPEG = (uint8_t *)ps_malloc(frame_len);
-    memcpy(HTTP_UI_JPEG_flashTestJPEG, frame_buf, frame_len);
-
-    PoECAM.Camera.free();
-    HTTP_UI_JPEG_flashTestJPEG_len = frame_len;
-  }
-  vTaskDelete(NULL);
-}
-*/
 void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
 {
   String currentLine = "";
@@ -1635,9 +1310,7 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "sensorValueNow.json", HTTP_UI_JSON_sensorValueNow},
     {HTTP_UI_MODE_GET, "unitTimeNow.json", HTTP_UI_JSON_unitTimeNow},
     {HTTP_UI_MODE_GET, "cameraLineNow.json", HTTP_UI_JSON_cameraLineNow},
-    //    {HTTP_UI_MODE_GET, "cameraLineNow.jpg", HTTP_UI_JPEG_cameraLineNow},
     {HTTP_UI_MODE_GET, "sensorImageNow.jpg", HTTP_UI_JPEG_sensorImageNow},
-    //    {HTTP_UI_MODE_GET, "flashTestImage.jpg", HTTP_UI_JPEG_flashTestImage},
     {HTTP_UI_MODE_GET, "view.html", HTTP_UI_PAGE_view},
     {HTTP_UI_MODE_GET, "chart.js", HTTP_UI_JS_ChartJS},
     {HTTP_UI_MODE_GET, "chart.html", HTTP_UI_PAGE_chart},
