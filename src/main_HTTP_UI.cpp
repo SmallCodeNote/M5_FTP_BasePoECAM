@@ -64,14 +64,11 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
   EdgeItem edgeItem;
   int maxWait = storeData.imageBufferingEpochInterval * 1000;
   unsigned long startMillis = millis();
-  // bool sw1 = xQueueProf_Last != NULL && uxQueueMessagesWaiting(xQueueProf_Last) > 0;
-  // bool sw2 = xQueueEdge_Last != NULL && uxQueueMessagesWaiting(xQueueEdge_Last) > 0;
 
-  bool sw1 = xQueueReceive(xQueueProf_Last, &profItem, maxWait) == pdPASS;
+  bool sw1 = xQueueProf_Last != NULL && xQueueReceive(xQueueProf_Last, &profItem, maxWait) == pdPASS;
   maxWait = maxWait - (millis() - startMillis);
   maxWait = maxWait < 0 ? 0 : maxWait;
-
-  bool sw2 = xQueuePeek(xQueueEdge_Last, &edgeItem, maxWait) == pdPASS;
+  bool sw2 = xQueueEdge_Last != NULL && xQueuePeek(xQueueEdge_Last, &edgeItem, maxWait) == pdPASS;
 
   if (sw1 && sw2)
   {
@@ -111,6 +108,8 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
     httpClient.print("\"edgePoint\":");
     httpClient.print("0");
     httpClient.println("}");
+
+    M5_LOGW("sw1 = %d, sw2 = %d, maxWait = %d", sw1, sw2, maxWait);
   }
 }
 
