@@ -213,6 +213,24 @@ u_int16_t channelSum(uint8_t *bitmap_pix)
   return r + g + b;
 }
 
+u_int16_t channelSum90(uint8_t *bitmap_pix)
+{
+  uint8_t *pixStart = bitmap_pix - storeData.pixLineSideWidth * 3;
+  uint8_t *pixEnd = bitmap_pix + storeData.pixLineSideWidth * 3;
+
+  uint16_t maxBr = 0;
+  uint16_t tempBr = 0;
+
+  for (uint8_t *pix = pixStart; pix <= pixEnd; pix += 3)
+  {
+    tempBr = channelSum(pix);
+    if (maxBr < tempBr)
+      maxBr = tempBr;
+  }
+
+  return maxBr;
+}
+
 void addEdgeItemToQueue(QueueHandle_t queueHandle, EdgeItem *edgeItem)
 {
   if (queueHandle != NULL && uxQueueSpacesAvailable(queueHandle) < 1 && uxQueueMessagesWaiting(queueHandle) > 0)
@@ -319,12 +337,26 @@ void getImageProfile(uint8_t *bitmap_buf, uint16_t *prof, JpegItem jpegItem, siz
   u_int16_t br = 0;
   int index = 0;
   int count = 0;
-  while (bitmap_pix_lineEnd > bitmap_pix && index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+
+  if (storeData.pixLineAngle == 90)
   {
-    br = channelSum(bitmap_pix);
-    prof[index] = br;
-    bitmap_pix += addressStep;
-    index++;
+    while (bitmap_pix_lineEnd > bitmap_pix && index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+    {
+      br = channelSum90(bitmap_pix);
+      prof[index] = br;
+      bitmap_pix += addressStep;
+      index++;
+    }
+  }
+  else
+  {
+    while (bitmap_pix_lineEnd > bitmap_pix && index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+    {
+      br = channelSum(bitmap_pix);
+      prof[index] = br;
+      bitmap_pix += addressStep;
+      index++;
+    }
   }
 }
 
@@ -372,12 +404,12 @@ void ImageProcessingLoop(void *arg)
 
       u_int16_t edgeX = ImageProcessingLoop_EdgePosition(profileItem);
       u_int16_t edgeX_Last = edgeX;
-      
+
       EdgeItem edgeItem = {jpegItem.epoc, edgeX};
       EdgeItem edgeItemLast = {jpegItem.epoc, edgeX_Last};
       addEdgeItemToQueue(xQueueEdge_Store, &edgeItem);
       addEdgeItemToQueue(xQueueEdge_Last, &edgeItemLast);
-      
+
       addProfItemToQueue(xQueueProf_Store, &profileItem);
       addProfItemToQueue(xQueueProf_Last, &profileItem_Last);
 
@@ -397,7 +429,6 @@ void ImageProcessingLoop(void *arg)
   vTaskDelete(NULL);
   M5_LOGE("");
 }
-
 
 uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
 {
