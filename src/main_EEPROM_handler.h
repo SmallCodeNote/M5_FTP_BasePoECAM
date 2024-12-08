@@ -19,54 +19,56 @@ struct DATA_SET
     IPAddress ftpSrvIP;
     IPAddress ntpSrvIP;
 
-    u_int16_t ftpImageSaveInterval;
-    u_int16_t ftpEdgeSaveInterval;
-    u_int16_t ftpProfileSaveInterval;
+u_int16_t ftpImageSaveInterval; // Interval for saving images to FTP [0 - 65535]
+u_int16_t ftpEdgeSaveInterval;  // Interval for saving edge data to FTP [0 - 65535]
+u_int16_t ftpProfileSaveInterval; // Interval for saving profile data to FTP [0 - 65535]
 
-    u_int16_t imageBufferingEpochInterval; //[1- (sec.)]
+u_int16_t imageBufferingEpochInterval; //[1- (sec.)]
 
-    u_int16_t chartUpdateInterval; //[ms]
-    u_int16_t chartShowPointCount;
-    int8_t timeZoneOffset;
-    u_int8_t flashIntensityMode;
-    u_int16_t flashLength; //[1- (ms)]
+u_int16_t chartUpdateInterval; //[ms]
+u_int16_t chartShowPointCount; // Number of points to show on the chart [0 - 65535]
+int8_t timeZoneOffset; // Time zone offset in hours [-12 - 14]
+u_int8_t flashIntensityMode; // Flash intensity mode [0 - 255]
+u_int16_t flashLength; //[1- (ms)]
 
-    uint8_t pixLineStep;      //[0-255 (px)]
-    uint8_t pixLineRange;     //[0-100%]
-    uint8_t pixLineAngle;     //[0-90(deg) 0:horizontal 90:vertical]
-    uint8_t pixLineShiftUp;   //[0-255 (px)]
-    uint8_t pixLineSideWidth; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
+uint8_t pixLineStep;      //[0-255 (px)]
+uint8_t pixLineRange;     //[0-100%]
+uint8_t pixLineAngle;     //[0-90(deg) 0:horizontal 90:vertical]
+uint8_t pixLineShiftUp;   //[0-255 (px)]
+uint8_t pixLineSideWidth; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
-    uint8_t pixLineEdgeSearchStart; //[0-100%]
-    uint8_t pixLineEdgeSearchEnd;   // [0-100%]
-    uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
-    uint16_t pixLineThrethold;      //[0-765]
+uint8_t pixLineEdgeSearchStart; //[0-100%]
+uint8_t pixLineEdgeSearchEnd;   // [0-100%]
+uint8_t pixLineEdgeUp;          // 1: dark -> light / 2: light -> dark
+uint16_t pixLineThrethold;      //[0-765]
 
-    // Sensor values
-    pixformat_t pixformat;
-    framesize_t framesize;
-    int contrast;
-    int brightness;
-    int saturation;
-    int sharpness;
-    int denoise;
-    gainceiling_t gainceiling;
-    int quality;
-    int colorbar;
-    int whitebal;
-    int gain_ctrl;
-    int exposure_ctrl;
-    int hmirror;
-    int vflip;
+// Sensor values
+pixformat_t pixformat; // Pixel format type
+framesize_t framesize; // Frame size type
+int contrast;          // Contrast level [-2 - 2]
+int brightness;        // Brightness level [-2 - 2]
+int saturation;        // Saturation level [-2 - 2]
+int sharpness;         // Sharpness level [-2 - 2]
+int denoise;           // Denoise level [0 - 1]
+gainceiling_t gainceiling; // Gain ceiling level [0 - 6]
+int quality;           // Image quality [0 - 63]
+int colorbar;          // Color bar enabled/disabled [0 | 1]
+int whitebal;          // White balance enabled/disabled [0 | 1]
+int gain_ctrl;         // Gain control enabled/disabled [0 | 1]
+int exposure_ctrl;     // Exposure control enabled/disabled [0 | 1]
+int hmirror;           // Horizontal mirror enabled/disabled [0 | 1]
+int vflip;             // Vertical flip enabled/disabled [0 | 1]
 
-    int aec2;
-    int awb_gain;
-    int agc_gain;
-    int aec_value;
+int aec2;              // Automatic exposure control 2 enabled/disabled [0 | 1]
+int awb_gain;          // Automatic white balance gain enabled/disabled [0 | 1]
+int agc_gain;          // Automatic gain control [0 - 30]
+int aec_value;         // Automatic exposure control value [0 - 1200]
 
-    int special_effect;
-    int wb_mode;
-    int ae_level;
+int special_effect;    // Special effect type [0 - 6]
+int wb_mode;           // White balance mode [0 - 4]
+int ae_level;          // Automatic exposure level [-2 - 2]
+
+
     /*
         int dcw;
         int bpc;

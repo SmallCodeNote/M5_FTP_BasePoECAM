@@ -7,6 +7,8 @@
 #include "main_HTTP_UI.h"
 #include "main_Loop.h"
 
+#include <cmath>
+
 void TimeUpdateLoop(void *arg)
 {
   M5_LOGI("TimeUpdateLoop Start  ");
@@ -154,7 +156,7 @@ void ImageStoreLoop(void *arg)
         digitalWrite(FLASH_EN_PIN, LOW);
         // M5_LOGI("");
         uint8_t *frame_buf = PoECAM.Camera.fb->buf;
-        int32_t frame_len = PoECAM.Camera.fb->len;
+        size_t frame_len = PoECAM.Camera.fb->len;
         pixformat_t pixmode = PoECAM.Camera.fb->format;
         u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
         u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
@@ -200,6 +202,229 @@ QueueHandle_t xQueueJpeg_Last;
 QueueHandle_t xQueueEdge_Last;
 QueueHandle_t xQueueProf_Last;
 
+u_int16_t channelSum(uint8_t *bitmap_pix)
+{
+  uint8_t rgb[3];
+  memcpy(rgb, bitmap_pix, 3);
+  uint16_t r = rgb[0];
+  uint16_t g = rgb[1];
+  uint16_t b = rgb[2];
+
+  return r + g + b;
+}
+
+void addEdgeItemToQueue(QueueHandle_t queueHandle, EdgeItem *edgeItem)
+{
+  if (queueHandle != NULL && uxQueueSpacesAvailable(queueHandle) < 1 && uxQueueMessagesWaiting(queueHandle) > 0)
+  {
+    EdgeItem tempItem;
+    xQueueReceive(queueHandle, &tempItem, 0);
+  }
+  xQueueSend(queueHandle, edgeItem, 0);
+}
+
+void addProfItemToQueue(QueueHandle_t queueHandle, ProfItem *profileItem)
+{
+  if (queueHandle != NULL && uxQueueSpacesAvailable(queueHandle) < 1 && uxQueueMessagesWaiting(queueHandle) > 0)
+  {
+    ProfItem tempItem;
+    xQueueReceive(queueHandle, &tempItem, 0);
+    free(tempItem.buf);
+  }
+  xQueueSend(queueHandle, profileItem, 0);
+}
+
+void addJpegItemToQueue(QueueHandle_t queueHandle, JpegItem *jpegItem)
+{
+  if (queueHandle != NULL && uxQueueSpacesAvailable(queueHandle) < 1 && uxQueueMessagesWaiting(queueHandle) > 0)
+  {
+    JpegItem tempItem;
+    xQueueReceive(queueHandle, &tempItem, 0);
+    free(tempItem.buf);
+  }
+  xQueueSend(queueHandle, jpegItem, 0);
+}
+
+void getProfStartAndEnd(u_int8_t angle, u_int32_t width, u_int32_t height, u_int32_t *startX, u_int32_t *endX, u_int32_t *startY, u_int32_t *endY, size_t *len, int32_t *addressStep)
+{
+  if (angle == 0)
+  {
+    *startX = 0;
+    *startY = height / 2;
+    *endX = width;
+    *endY = height / 2;
+    *len = width;
+    *addressStep = 3;
+  }
+  else // if (angle == 90)
+  {
+    *startX = width / 2;
+    *startY = 0;
+    *endX = width / 2;
+    *endY = height;
+    *len = height;
+    *addressStep = 3 * width;
+  }
+  /*else if (angle == 45)
+  {
+    *startX = width > height ? (width - height) / 2 : 0;
+    *startY = height > width ? (height - width) / 2 : 0;
+    *endX = width > height ? width - (width - height) / 2 : 0;
+    *endY = height > width ? height - (height - width) / 2 : 0;
+    *len = height < width ? height : width;
+    *addressStep = 3 * width + 3;
+  }
+  else
+  {
+    float rad = angle * M_PI / 180.0;
+    float tanAngle = tan(rad);
+
+    if (angle < 45)
+    {
+      *startX = 0;
+      *startY = height / 2 - (width / 2) * tanAngle;
+      *endX = width - 1;
+      *endY = height / 2 + (width / 2) * tanAngle;
+      *len = width;
+    }
+    else
+    {
+      *startX = width / 2 - (height / 2) / tanAngle;
+      *startY = 0;
+      *endX = width / 2 + (height / 2) / tanAngle;
+      *endY = height - 1;
+      *len = height;
+    }
+
+    *startY = std::max(0, std::min((int)height - 1, (int)*startY));
+    *endY = std::max(0, std::min((int)height - 1, (int)*endY));
+    *startX = std::max(0, std::min((int)width - 1, (int)*startX));
+    *endX = std::max(0, std::min((int)width - 1, (int)*endX));
+  }*/
+}
+
+void getImageProfile(uint8_t *bitmap_buf, uint16_t *prof, JpegItem jpegItem, size_t *profLen)
+{
+  uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
+  pixLineStep = pixLineStep > jpegItem.width ? jpegItem.width : pixLineStep;
+
+  int32_t addressStep = 3;
+  uint32_t startX = 0, startY = 0, endX = 0, endY = 0;
+
+  getProfStartAndEnd(storeData.pixLineAngle, jpegItem.width, jpegItem.height, &startX, &endX, &startY, &endY, profLen, &addressStep);
+
+  uint8_t *bitmap_pix = bitmap_buf + startX * 3u + startY * jpegItem.width * 3u;
+  uint8_t *bitmap_pix_lineEnd = bitmap_buf + endX * 3u + endY * jpegItem.width * 3u;
+
+  u_int16_t br = 0;
+  int index = 0;
+  int count = 0;
+  while (bitmap_pix_lineEnd > bitmap_pix && index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+  {
+    br = channelSum(bitmap_pix);
+    prof[index] = br;
+    bitmap_pix += addressStep;
+    index++;
+  }
+}
+
+void ImageProcessingLoop(void *arg)
+{
+  M5_LOGI("");
+  xQueueJpeg_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  xQueueProf_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(ProfItem));
+  xQueueEdge_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(EdgeItem));
+
+  xQueueJpeg_Last = xQueueCreate(1, sizeof(JpegItem));
+  xQueueProf_Last = xQueueCreate(1, sizeof(ProfItem));
+  xQueueEdge_Last = xQueueCreate(1, sizeof(EdgeItem));
+
+  while (true)
+  {
+    JpegItem jpegItem;
+
+    while (xQueueJpeg_Src != NULL && xQueueReceive(xQueueJpeg_Src, &jpegItem, 0) == pdPASS)
+    {
+      // M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
+      int bufIndexMax = 3 * jpegItem.width * jpegItem.height;
+      uint8_t *bitmap_buf = (uint8_t *)ps_malloc(bufIndexMax);
+      /*
+      int bufIndex = 0;
+      while (bufIndex < bufIndexMax)
+      {
+        bitmap_buf[bufIndex] = 0u;
+        bufIndex++;
+      }
+      */
+      fmt2rgb888(jpegItem.buf, jpegItem.len, jpegItem.pixformat, bitmap_buf);
+      /*
+            u_int16_t edgeX = ImageProcessingLoop_EdgePosition(bitmap_buf, jpegItem);
+            u_int16_t edgeX_Last = edgeX;
+
+            if (uxQueueSpacesAvailable(xQueueEdge_Store) < 1)
+            {
+              EdgeItem tempItem;
+              xQueueReceive(xQueueEdge_Store, &tempItem, 0);
+            }
+
+            EdgeItem edgeItem = {jpegItem.epoc, edgeX};
+            if (xQueueSend(xQueueEdge_Store, &edgeItem, 0) != pdPASS)
+            {
+              M5_LOGE();
+            };
+
+            EdgeItem edgeItemLast = {jpegItem.epoc, edgeX_Last};
+            xQueueOverwrite(xQueueEdge_Last, &edgeItemLast);
+      */
+      //====================
+      uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+      uint16_t *prof_buf_Last = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+
+      size_t profLen = 0;
+      getImageProfile(bitmap_buf, prof_buf, jpegItem, &profLen);
+      free(bitmap_buf);
+
+      int index = profLen;
+      while (index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+      {
+        prof_buf[index] = 0u;
+        index++;
+      }
+
+      memcpy(prof_buf_Last, prof_buf, MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+
+      ProfItem profileItem = {jpegItem.epoc, profLen, prof_buf};
+      ProfItem profileItem_Last = {jpegItem.epoc, profLen, prof_buf_Last};
+
+      u_int16_t edgeX = ImageProcessingLoop_EdgePosition(profileItem);
+      u_int16_t edgeX_Last = edgeX;
+      
+      EdgeItem edgeItem = {jpegItem.epoc, edgeX};
+      EdgeItem edgeItemLast = {jpegItem.epoc, edgeX_Last};
+      addEdgeItemToQueue(xQueueEdge_Store, &edgeItem);
+      addEdgeItemToQueue(xQueueEdge_Last, &edgeItemLast);
+      
+      addProfItemToQueue(xQueueProf_Store, &profileItem);
+      addProfItemToQueue(xQueueProf_Last, &profileItem_Last);
+
+      //====================
+      uint8_t *frame_Jpeg_Last = (uint8_t *)ps_malloc(jpegItem.len);
+      memcpy(frame_Jpeg_Last, jpegItem.buf, jpegItem.len);
+      JpegItem jpegItem_Last = {jpegItem.epoc, frame_Jpeg_Last, jpegItem.len};
+
+      addJpegItemToQueue(xQueueJpeg_Store, &jpegItem);
+      addJpegItemToQueue(xQueueJpeg_Last, &jpegItem_Last);
+
+      delay(1);
+    }
+
+    delay(1);
+  }
+  vTaskDelete(NULL);
+  M5_LOGE("");
+}
+
+/*
 void ImageProcessingLoop(void *arg)
 {
   M5_LOGI("");
@@ -239,8 +464,12 @@ void ImageProcessingLoop(void *arg)
       xQueueOverwrite(xQueueEdge_Last, &edgeItemLast);
 
       //====================
+      uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+      uint16_t *prof_buf_Last = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+
       uint32_t pixLineStep = (u_int32_t)(storeData.pixLineStep);
       pixLineStep = pixLineStep > jpegItem.width ? jpegItem.width : pixLineStep;
+
       uint32_t pixLineRange = (u_int32_t)(storeData.pixLineRange);
       pixLineRange = pixLineRange > 100u ? 100u : pixLineRange;
 
@@ -251,25 +480,14 @@ void ImageProcessingLoop(void *arg)
       u_int32_t startOffset = (jpegItem.width * jpegItem.height / 2u + xStartPix) * 3u;
       uint8_t *bitmap_pix = bitmap_buf + startOffset;
       uint8_t *bitmap_pix_lineEnd = bitmap_buf + startOffset + (xEndPix - xStartPix) * 3u;
-
       bitmap_pix_lineEnd = bitmap_pix_lineEnd == bitmap_pix ? bitmap_pix_lineEnd + 3u : bitmap_pix_lineEnd;
-
-      uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
-      uint16_t *prof_buf_Last = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
 
       u_int16_t br = 0;
       int index = 0;
       int count = 0;
       while (bitmap_pix_lineEnd > bitmap_pix)
       {
-        br = 0;
-        br += *(bitmap_pix);
-        bitmap_pix++;
-        br += *(bitmap_pix);
-        bitmap_pix++;
-        br += *(bitmap_pix);
-        bitmap_pix++;
-
+        br = channelSum(bitmap_pix);
         if (index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
         {
           prof_buf[index] = br;
@@ -334,7 +552,8 @@ void ImageProcessingLoop(void *arg)
   vTaskDelete(NULL);
   M5_LOGE("");
 }
-
+*/
+/*
 uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs)
 {
   int32_t fb_width = (int32_t)((taskArgs.width));
@@ -372,28 +591,45 @@ uint16_t ImageProcessingLoop_EdgePosition(uint8_t *bitmap_buf, JpegItem taskArgs
   }
 
   return (uint16_t)x;
+}*/
+uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
+{
+  // int32_t fb_width = (int32_t)((taskArgs.width));
+  // int32_t fb_height = (int32_t)((taskArgs.height));
+  int32_t startRate = (int32_t)(storeData.pixLineEdgeSearchStart);
+  int32_t endRate = (int32_t)(storeData.pixLineEdgeSearchEnd);
+  // M5_LOGI("xStartRate=%d , xEndRate=%d ", xStartRate, xEndRate);
+
+  int32_t xStartPix = (int32_t)((profItem.len * startRate) / 100);
+  int32_t xEndPix = (int32_t)((profItem.len * endRate) / 100);
+  // M5_LOGI("xStartPix=%d , xEndPix=%d ", xStartPix, xEndPix);
+
+  int32_t xStep = xStartPix < xEndPix ? 1 : -1;
+
+  // int32_t startOffset = (fb_width * fb_height / 2) * 3;
+  // uint8_t *bitmap_pix = bitmap_buf + startOffset;
+  int16_t br = 0;
+  int32_t EdgeMode = storeData.pixLineEdgeUp == 1 ? 1 : -1;
+  int32_t th = (int32_t)storeData.pixLineThrethold;
+
+  int32_t x = xStartPix;
+
+  for (; (xEndPix - x) * xStep > 0; x += xStep)
+  {
+    br = profItem.buf[x];
+    if ((th - br) * EdgeMode < 0)
+    {
+      return (uint16_t)x;
+    }
+  }
+  return (uint16_t)x;
 }
 
 void HTTPLoop(void *arg)
 {
-
   while (true)
   {
     HTTP_UI();
-    /*
-        if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
-        {
-          M5_LOGD("Ethernet.maintain();");
-          Ethernet.maintain();
-          xSemaphoreGive(mutex_Ethernet);
-                  M5_LOGI("mutex give");
-
-        }
-        else
-        {
-          M5_LOGW("mutex can not take.");
-        }
-    */
     delay(10);
   }
   vTaskDelete(NULL);

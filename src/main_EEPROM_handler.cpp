@@ -75,56 +75,56 @@ void InitEEPROM()
     ftp_user = "ftpusr";
     ftp_pass = "ftpword";
 
-    ftpImageSaveInterval = "0";
-    ftpEdgeSaveInterval = "0";
-    ftpProfileSaveInterval = "0";
+    String ftpImageSaveInterval = "0";   // Interval for saving images to FTP [0 - 65535]
+    String ftpEdgeSaveInterval = "0";    // Interval for saving edge data to FTP [0 - 65535]
+    String ftpProfileSaveInterval = "0"; // Interval for saving profile data to FTP [0 - 65535]
 
-    imageBufferingEpochInterval = "1";
+    String imageBufferingEpochInterval = "1"; //[sec.]
 
-    chartShowPointCount = "60";
-    chartUpdateInterval = "1000";
+    String chartShowPointCount = "60";   // Number of points to show on the chart [0 - 65535]
+    String chartUpdateInterval = "1000"; //[ms]
 
-    timeZoneOffset = "9";
+    String timeZoneOffset = "9"; // Time zone offset in hours [-12 - 14]
 
-    flashIntensityMode = "6";
-    flashLength = "60";
+    String flashIntensityMode = "6"; // Flash intensity mode [0 - 255]
+    String flashLength = "60";       //[ms]
 
-    pixLineStep = "0";      //[px  0 - ]
-    pixLineRange = "50";    //[%]
-    pixLineAngle = "0";     //[0-90deg 0:horizontal 90:vertical]
-    pixLineShiftUp = "0";   //[0-255 (px)]
-    pixLineSideWidth = "0"; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
+    String pixLineStep = "0";      //[px  0 - 255]
+    String pixLineRange = "50";    //[0-100%]
+    String pixLineAngle = "0";     //[0-90(deg) 0:horizontal 90:vertical]
+    String pixLineShiftUp = "0";   //[0-255 (px)]
+    String pixLineSideWidth = "0"; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
-    pixLineEdgeSearchStart = "25"; //[0-100%]
-    pixLineEdgeSearchEnd = "75";   // [0-100%]
-    pixLineEdgeUp = "2";           // 1: dark -> light / 2: light -> dark
-    pixLineThrethold = "384";      //[0-765]
+    String pixLineEdgeSearchStart = "25"; //[0-100%]
+    String pixLineEdgeSearchEnd = "75";   //[0-100%]
+    String pixLineEdgeUp = "2";           // 1: dark -> light / 2: light -> dark
+    String pixLineThrethold = "384";      //[0-765]
 
-    pixformat = "4"; // 4:JPEG
-    framesize = "5"; // 5:QVGA(320x240)
+    String pixformat = "4"; // Pixel format type (4:JPEG)
+    String framesize = "5"; // Frame size type (5:QVGA)
 
-    contrast = "0";      // Contrast [-2 - 2]
-    brightness = "0";    // Brightness [-2 - 2]
-    saturation = "0";    // Saturation [-2 - 2]
-    sharpness = "0";     // Sharpness [-2 - 2]
-    denoise = "1";       // Denoise level
-    gainceiling = "0";   // Initial value [0 - 6]
-    quality = "10";      // Quality initial value [0 - 63]
-    colorbar = "0";      // Color bar disabled|enabled [0 | 1]
-    whitebal = "1";      // White balance initial value [0 | 1]
-    gain_ctrl = "1";     // Gain control disabled|enabled [0 | 1]
-    exposure_ctrl = "1"; // Exposure control disabled|enabled [0 | 1]
-    hmirror = "1";       // Horizontal flip [0 | 1]
-    vflip = "0";         // Vertical flip [0 | 1]
+    String contrast = "0";      // Contrast level [-2 - 2]
+    String brightness = "0";    // Brightness level [-2 - 2]
+    String saturation = "0";    // Saturation level [-2 - 2]
+    String sharpness = "0";     // Sharpness level [-2 - 2]
+    String denoise = "1";       // Denoise level [0 - 1]
+    String gainceiling = "0";   // Gain ceiling level [0 - 6]
+    String quality = "10";      // Image quality [0 - 63]
+    String colorbar = "0";      // Color bar enabled/disabled [0 | 1]
+    String whitebal = "1";      // White balance enabled/disabled [0 | 1]
+    String gain_ctrl = "1";     // Gain control enabled/disabled [0 | 1]
+    String exposure_ctrl = "1"; // Exposure control enabled/disabled [0 | 1]
+    String hmirror = "1";       // Horizontal mirror enabled/disabled [0 | 1]
+    String vflip = "0";         // Vertical flip enabled/disabled [0 | 1]
 
-    aec2 = "0";      // Automatic exposure control 2 disabled|enabled [0 | 1]
-    awb_gain = "0";  // Automatic white balance gain disabled|enabled [0 | 1]
-    agc_gain = "0";  // Automatic gain control [0 - 30]
-    aec_value = "0"; // Automatic exposure control [0 - 1200]
+    String aec2 = "0";      // Automatic exposure control 2 enabled/disabled [0 | 1]
+    String awb_gain = "0";  // Automatic white balance gain enabled/disabled [0 | 1]
+    String agc_gain = "0";  // Automatic gain control [0 - 30]
+    String aec_value = "0"; // Automatic exposure control value [0 - 1200]
 
-    special_effect = "0"; // Special effect [0 - 6]
-    wb_mode = "0";        // White balance mode [0 - 4]
-    ae_level = "0";       // Automatic exposure level [-2 - 2]
+    String special_effect = "0"; // Special effect type [0 - 6]
+    String wb_mode = "0";        // White balance mode [0 - 4]
+    String ae_level = "0";       // Automatic exposure level [-2 - 2]
 
     SetStoreDataFromStrings();
     storeData.romCheckCode = EEPROM_CHECK_CODE;
@@ -151,30 +151,41 @@ void LoadEEPROM()
 
 void PutEEPROM()
 {
-    M5_LOGI("PutEEPROM: romCheckCode = %x", (storeData.romCheckCode));
-    M5_LOGI("PutEEPROM: deviceName = %s, %s", deviceName.c_str(), (storeData.deviceName));
 
     M5_LOGI("PutEEPROM: ftpImageSaveInterval = %s, %u", ftpImageSaveInterval.c_str(), (storeData.ftpImageSaveInterval));
     M5_LOGI("PutEEPROM: ftpEdgeSaveInterval = %s, %u", ftpEdgeSaveInterval.c_str(), (storeData.ftpEdgeSaveInterval));
     M5_LOGI("PutEEPROM: ftpProfileSaveInterval = %s, %u", ftpProfileSaveInterval.c_str(), (storeData.ftpProfileSaveInterval));
 
-    M5_LOGI("PutEEPROM: ftpProfileSaveInterval = %s, %u", imageBufferingEpochInterval.c_str(), (storeData.imageBufferingEpochInterval));
+    M5_LOGI("PutEEPROM: imageBufferingEpochInterval = %s, %u", imageBufferingEpochInterval.c_str(), (storeData.imageBufferingEpochInterval));
 
-    M5_LOGI("PutEEPROM: chartUpdateInterval = %s, %u", chartUpdateInterval.c_str(), (storeData.chartUpdateInterval));
     M5_LOGI("PutEEPROM: chartShowPointCount = %s, %u", chartShowPointCount.c_str(), (storeData.chartShowPointCount));
+    M5_LOGI("PutEEPROM: chartUpdateInterval = %s, %u", chartUpdateInterval.c_str(), (storeData.chartUpdateInterval));
 
-    M5_LOGI("PutEEPROM: timeZoneOffset = %s, %d", timeZoneOffset.c_str(), (storeData.timeZoneOffset));
+    M5_LOGI("PutEEPROM: timeZoneOffset = %s, %u", timeZoneOffset.c_str(), (storeData.timeZoneOffset));
+
     M5_LOGI("PutEEPROM: flashIntensityMode = %s, %u", flashIntensityMode.c_str(), (storeData.flashIntensityMode));
     M5_LOGI("PutEEPROM: flashLength = %s, %u", flashLength.c_str(), (storeData.flashLength));
 
+    M5_LOGI("PutEEPROM: pixLineStep = %s, %u", pixLineStep.c_str(), (storeData.pixLineStep));
+    M5_LOGI("PutEEPROM: pixLineRange = %s, %u", pixLineRange.c_str(), (storeData.pixLineRange));
+    M5_LOGI("PutEEPROM: pixLineAngle = %s, %u", pixLineAngle.c_str(), (storeData.pixLineAngle));
+    M5_LOGI("PutEEPROM: pixLineShiftUp = %s, %u", pixLineShiftUp.c_str(), (storeData.pixLineShiftUp));
+    M5_LOGI("PutEEPROM: pixLineSideWidth = %s, %u", pixLineSideWidth.c_str(), (storeData.pixLineSideWidth));
+
+    M5_LOGI("PutEEPROM: pixLineEdgeSearchStart = %s, %u", pixLineEdgeSearchStart.c_str(), (storeData.pixLineEdgeSearchStart));
+    M5_LOGI("PutEEPROM: pixLineEdgeSearchEnd = %s, %u", pixLineEdgeSearchEnd.c_str(), (storeData.pixLineEdgeSearchEnd));
+    M5_LOGI("PutEEPROM: pixLineEdgeUp = %s, %u", pixLineEdgeUp.c_str(), (storeData.pixLineEdgeUp));
+    M5_LOGI("PutEEPROM: pixLineThrethold = %s, %u", pixLineThrethold.c_str(), (storeData.pixLineThrethold));
+
     M5_LOGI("PutEEPROM: pixformat = %s, %u", pixformat.c_str(), (storeData.pixformat));
     M5_LOGI("PutEEPROM: framesize = %s, %u", framesize.c_str(), (storeData.framesize));
+
     M5_LOGI("PutEEPROM: contrast = %s, %d", contrast.c_str(), (storeData.contrast));
     M5_LOGI("PutEEPROM: brightness = %s, %d", brightness.c_str(), (storeData.brightness));
     M5_LOGI("PutEEPROM: saturation = %s, %d", saturation.c_str(), (storeData.saturation));
     M5_LOGI("PutEEPROM: sharpness = %s, %d", sharpness.c_str(), (storeData.sharpness));
     M5_LOGI("PutEEPROM: denoise = %s, %d", denoise.c_str(), (storeData.denoise));
-    M5_LOGI("PutEEPROM: gainceiling = %s, %u", gainceiling.c_str(), (storeData.gainceiling));
+    M5_LOGI("PutEEPROM: gainceiling = %s, %d", gainceiling.c_str(), (storeData.gainceiling));
     M5_LOGI("PutEEPROM: quality = %s, %d", quality.c_str(), (storeData.quality));
     M5_LOGI("PutEEPROM: colorbar = %s, %d", colorbar.c_str(), (storeData.colorbar));
     M5_LOGI("PutEEPROM: whitebal = %s, %d", whitebal.c_str(), (storeData.whitebal));
@@ -187,7 +198,7 @@ void PutEEPROM()
     M5_LOGI("PutEEPROM: awb_gain = %s, %d", awb_gain.c_str(), (storeData.awb_gain));
     M5_LOGI("PutEEPROM: agc_gain = %s, %d", agc_gain.c_str(), (storeData.agc_gain));
     M5_LOGI("PutEEPROM: aec_value = %s, %d", aec_value.c_str(), (storeData.aec_value));
-
+    
     M5_LOGI("PutEEPROM: special_effect = %s, %d", special_effect.c_str(), (storeData.special_effect));
     M5_LOGI("PutEEPROM: wb_mode = %s, %d", wb_mode.c_str(), (storeData.wb_mode));
     M5_LOGI("PutEEPROM: ae_level = %s, %d", ae_level.c_str(), (storeData.ae_level));

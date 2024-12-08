@@ -13,7 +13,7 @@ struct JpegItem
 {
   unsigned long epoc;
   uint8_t *buf;
-  int32_t len;
+  size_t len;
   pixformat_t pixformat;
   u_int32_t width;
   u_int32_t height;
@@ -22,7 +22,7 @@ struct JpegItem
 struct ProfItem
 {
   unsigned long epoc;
-  int32_t len;
+  size_t len;
   u_int16_t *buf;
 };
 

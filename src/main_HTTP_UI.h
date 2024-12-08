@@ -79,6 +79,14 @@ struct HTTP_UI_JPEG_STORE_TaskArgs
   pixformat_t pixmode;
 };
 
+struct HTTP_UI_BITMAP
+{
+  uint8_t **BITMAP;
+  u_int32_t fb_width;
+  u_int32_t fb_height;
+};
+
+
 extern EthernetServer HttpUIServer;
 extern String SensorValueString;
 
