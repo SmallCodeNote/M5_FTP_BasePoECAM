@@ -29,6 +29,20 @@
 // portMUX_TYPE mutex_Ethernet = portMUX_INITIALIZER_UNLOCKED;
 SemaphoreHandle_t mutex_Ethernet;
 
+bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec)
+{
+  int retryCount = retrySec * 10;
+  while (retryCount)
+  {
+    if (xSemaphoreTake(mutex, 0) == pdTRUE)
+      break;
+    retryCount--;
+    delay(100);
+  }
+
+  return retryCount > 0;
+}
+
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 EthernetClient FtpClient(21);
@@ -36,6 +50,10 @@ M5_Ethernet_FtpClient ftp(ftpSrvIP_String, ftp_user, ftp_pass, 60000);
 M5_Ethernet_NtpClient NtpClient;
 
 bool UnitEnable = true;
+
+
+
+
 
 String getInterfaceMacAddress(esp_mac_type_t interface)
 {

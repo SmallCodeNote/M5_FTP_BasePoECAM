@@ -112,7 +112,7 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
     M5_LOGW("sw1 = %d, sw2 = %d, maxWait = %d", sw1, sw2, maxWait);
   }
 }
-
+/*
 void HTTP_UI_JPEG_STORE_Task(void *arg)
 {
   M5_LOGD("");
@@ -146,7 +146,7 @@ void HTTP_UI_JPEG_STORE_Task(void *arg)
   vTaskDelete(NULL);
   M5_LOGI("");
 }
-
+*/
 void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
 {
   M5_LOGI("");
@@ -188,7 +188,6 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
   }
   // httpClient.stop();
 }
-
 
 void HTTP_UI_STREAM_JPEG(EthernetClient httpClient)
 {
@@ -421,16 +420,37 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
   httpClient.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
   httpClient.println("    ctx.strokeStyle = 'red';");
   httpClient.println("    ctx.lineWidth = 1;");
-  httpClient.println("    ctx.save();");
+  httpClient.printf("    var angle = %u * Math.PI / 180;", storeData.pixLineAngle); // Convert angle to radians
   httpClient.println("    var centerX = canvas.width / 2;");
   httpClient.println("    var centerY = canvas.height / 2;");
-  httpClient.println("    ctx.translate(centerX, centerY);");
-  httpClient.printf("    ctx.rotate(%u * Math.PI / 180);", storeData.pixLineAngle);
-  httpClient.printf("    ctx.strokeRect(%u * (canvas.width / img.width) - centerX, %u * (canvas.height / img.height) - centerY, %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1,  y1,  xw);
-  httpClient.println("    ctx.restore();");
+  httpClient.printf("    var halfWidth = %u * (canvas.width / img.width);", (xw / 2));
+  httpClient.printf("    var halfHeight =  %u * (canvas.height / img.height);", (2 / 2));
+
+  httpClient.println("    function rotatePoint(x, y, centerX, centerY, angle) {");
+  httpClient.println("      var cos = Math.cos(angle);");
+  httpClient.println("      var sin = Math.sin(angle);");
+  httpClient.println("      var nx = cos * (x - centerX) - sin * (y - centerY) + centerX;");
+  httpClient.println("      var ny = sin * (x - centerX) + cos * (y - centerY) + centerY;");
+  httpClient.println("      return {x: nx, y: ny};");
+  httpClient.println("    }");
+
+  httpClient.println("    var points = [");
+  httpClient.println("      rotatePoint(centerX - halfWidth, centerY - halfHeight, centerX, centerY, angle),");
+  httpClient.println("      rotatePoint(centerX + halfWidth, centerY - halfHeight, centerX, centerY, angle),");
+  httpClient.println("      rotatePoint(centerX + halfWidth, centerY + halfHeight, centerX, centerY, angle),");
+  httpClient.println("      rotatePoint(centerX - halfWidth, centerY + halfHeight, centerX, centerY, angle)");
+  httpClient.println("    ];");
 
   httpClient.println("    ctx.beginPath();");
-  httpClient.printf("    ctx.arc(%u * (canvas.width / img.width), edgePointBuff * (canvas.height / img.height), 3, 0, 2 * Math.PI);",centerX);
+  httpClient.println("    ctx.moveTo(points[0].x, points[0].y);");
+  httpClient.println("    for (var i = 1; i < points.length; i++) {");
+  httpClient.println("      ctx.lineTo(points[i].x, points[i].y);");
+  httpClient.println("    }");
+  httpClient.println("    ctx.closePath();");
+  httpClient.println("    ctx.stroke();");
+
+  httpClient.println("    ctx.beginPath();");
+  httpClient.printf("    ctx.arc(%u * (canvas.width / img.width), edgePointBuff * (canvas.height / img.height), 3, 0, 2 * Math.PI);", centerX);
   httpClient.println("    ctx.fillStyle = 'red';");
   httpClient.println("    ctx.fill();");
   httpClient.println("    ctx.stroke();");
@@ -453,6 +473,139 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
 
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
+
+/*
+void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
+{
+  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
+  HTTP_UI_PART_HTMLHeader(httpClient);
+
+  httpClient.println("<h1>Camera Line View</h1>");
+
+  httpClient.println("<ul id=\"valueLabel\">");
+  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
+  httpClient.println("<li>edgePoint: <span id=\"edgePoint\"></span></li>");
+  httpClient.println("</ul>");
+
+  httpClient.println("<canvas id=\"cameraLineChart\" width=\"400\" height=\"100\"></canvas>");
+
+  httpClient.println("<canvas id=\"cameraImage\" width=\"400\"></canvas>");
+
+  httpClient.println("<script src=\"/chart.js\"></script>");
+
+  httpClient.println("<script>");
+  httpClient.println("var chart = null;");
+  httpClient.println("var edgePointBuff = 0;");
+
+  httpClient.println("function fetchCameraLineData() {");
+  httpClient.println("  var xhr = new XMLHttpRequest();");
+  httpClient.println("  xhr.onreadystatechange = function() {");
+  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
+  httpClient.println("      var data = JSON.parse(xhr.responseText);");
+  httpClient.println("      updateChart(data.CameraLineValue);");
+  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
+  httpClient.println("      document.getElementById('edgePoint').innerText = data.edgePoint;");
+  httpClient.println("      edgePointBuff = data.edgePoint;");
+  httpClient.println("    }");
+  httpClient.println("  };");
+  httpClient.println("  xhr.open('GET', '/cameraLineNow.json', true);");
+  httpClient.println("  xhr.send();");
+  httpClient.println("}");
+
+  httpClient.println("function updateChart(data) {");
+  httpClient.println("  var ctx = document.getElementById('cameraLineChart').getContext('2d');");
+
+  httpClient.println("  if (chart) {");
+  httpClient.println("    chart.destroy();");
+  httpClient.println("  }");
+
+  httpClient.println("  chart = new Chart(ctx, {");
+  httpClient.println("    type: 'line',");
+  httpClient.println("    data: {");
+  httpClient.println("      labels: data.map((_, index) => index),");
+  httpClient.println("      datasets: [{");
+  httpClient.println("        label: 'Camera Line Data',");
+  httpClient.println("        data: data,");
+  httpClient.println("        borderColor: 'rgba(75, 192, 192, 1)',");
+  httpClient.println("        borderWidth: 1,");
+  httpClient.println("        fill: false");
+  httpClient.println("      }]");
+  httpClient.println("    },");
+  httpClient.println("    options: {");
+  httpClient.println("      animation: false,");
+  httpClient.println("      scales: {");
+  httpClient.println("        x: {");
+  httpClient.println("          type: 'linear',");
+  httpClient.println("          position: 'bottom'");
+  httpClient.println("        },");
+  httpClient.println("        y: {");
+  httpClient.println("          type: 'linear',");
+  httpClient.println("          position: 'right'");
+  //  httpClient.println("          display: false");
+  httpClient.println("        }");
+  httpClient.println("      },");
+  httpClient.println("      plugins: {");
+  httpClient.println("        legend: {");
+  httpClient.println("          display: false");
+  httpClient.println("        }");
+  httpClient.println("      }");
+  httpClient.println("    }");
+  httpClient.println("  });");
+  httpClient.println("}");
+
+  uint32_t iWidth = (uint32_t)CameraSensorFrameWidth(storeData.framesize);
+  uint32_t iHeight = (uint32_t)CameraSensorFrameHeight(storeData.framesize);
+
+  uint32_t centerX = iWidth / 2, centerY = iHeight / 2;
+
+  uint32_t x1 = (uint32_t)((iWidth * (100 - storeData.pixLineRange)) / 200);
+  uint32_t xw = (uint32_t)((iWidth * storeData.pixLineRange) / 100);
+  uint32_t y1 = (uint32_t)((iHeight) / 2) - 1;
+  uint32_t px = 0;
+  u_int32_t py = 0;
+
+  httpClient.println("function refreshImage() {");
+  httpClient.println("  var ctx = document.getElementById('cameraImage').getContext('2d');");
+  httpClient.println("  var img = new Image();");
+  httpClient.println("  img.onload = function() {");
+  httpClient.println("    var canvas = document.getElementById('cameraImage');");
+  httpClient.println("    canvas.height = img.height * (canvas.width / img.width);");
+  httpClient.println("    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);");
+  httpClient.println("    ctx.strokeStyle = 'red';");
+  httpClient.println("    ctx.lineWidth = 1;");
+  httpClient.println("    ctx.save();");
+  httpClient.println("    var centerX = canvas.width / 2;");
+  httpClient.println("    var centerY = canvas.height / 2;");
+  httpClient.println("    ctx.translate(centerX, centerY);");
+  httpClient.printf("    ctx.rotate(%u * Math.PI / 180);", storeData.pixLineAngle);
+  httpClient.printf("    ctx.strokeRect(%u * (canvas.width / img.width) - centerX, %u * (canvas.height / img.height) - centerY, %u * (canvas.width / img.width), 2 * (canvas.height / img.height));", x1, y1, xw);
+  httpClient.println("    ctx.restore();");
+
+  httpClient.println("    ctx.beginPath();");
+  httpClient.printf("    ctx.arc(%u * (canvas.width / img.width), edgePointBuff * (canvas.height / img.height), 3, 0, 2 * Math.PI);", centerX);
+  httpClient.println("    ctx.fillStyle = 'red';");
+  httpClient.println("    ctx.fill();");
+  httpClient.println("    ctx.stroke();");
+
+  httpClient.println("  };");
+  httpClient.println("  img.src = '/sensorImageNow.jpg?' + new Date().getTime();"); // add timestamp
+  httpClient.println("}");
+
+  httpClient.println("function update() {");
+  httpClient.println("  refreshImage();");
+  httpClient.println("  fetchCameraLineData();");
+  httpClient.println("}");
+
+  httpClient.printf("setInterval(update, %u);", storeData.chartUpdateInterval);
+  httpClient.println("update();");
+  httpClient.println("</script>");
+
+  httpClient.println("<br />");
+  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
+
+  HTTP_UI_PART_HTMLFooter(httpClient);
+}
+*/
 
 void HTTP_UI_PAGE_chart(EthernetClient httpClient)
 {

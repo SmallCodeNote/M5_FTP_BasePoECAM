@@ -1,17 +1,12 @@
 #ifndef MAIN_LOOP_FUNCTION_H
 #define MAIN_LOOP_FUNCTION_H
 
-#define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 30
-#define MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX 1024
-
 #include "main.h"
 
-typedef struct 
+typedef struct
 {
   unsigned long currentEpoch;
-}SensorShotTaskParams;
-
-
+} SensorShotTaskParams;
 
 void TimeUpdateLoop(void *arg);
 void TimeServerAccessLoop(void *arg);

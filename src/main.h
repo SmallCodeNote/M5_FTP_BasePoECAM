@@ -7,7 +7,10 @@
 
 #define FLASH_EN_PIN 25
 
-#define MUX_BLOCK_TIM 1000//mutex block time
+#define MUX_BLOCK_TIM 1000 // mutex block time
+
+#define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 30
+#define MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX 1024
 
 struct JpegItem
 {
@@ -54,5 +57,6 @@ extern QueueHandle_t xQueueProf_Last;
 
 extern SemaphoreHandle_t mutex_Ethernet;
 // extern portMUX_TYPE mutex_Ethernet;
+bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
 
 #endif

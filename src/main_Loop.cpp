@@ -29,15 +29,15 @@ void TimeServerAccessLoop(void *arg)
   while (true)
   {
     delay(10000);
-    if (count >= 60)
+    if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
       M5_LOGV("");
-      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+      if (xSemaphoreTakeRetry(mutex_Ethernet, 1))
       {
         M5_LOGV("");
         NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
         M5_LOGV("");
-        count = 0;
+
         xSemaphoreGive(mutex_Ethernet);
       }
       else
@@ -45,6 +45,7 @@ void TimeServerAccessLoop(void *arg)
         M5_LOGW("mutex can not take.");
       }
       M5_LOGV("");
+      count = 0;
     }
     else
     {
@@ -256,11 +257,15 @@ void addJpegItemToQueue(QueueHandle_t queueHandle, JpegItem *jpegItem)
 {
   if (queueHandle != NULL && uxQueueSpacesAvailable(queueHandle) < 1 && uxQueueMessagesWaiting(queueHandle) > 0)
   {
+    M5_LOGI();
     JpegItem tempItem;
     xQueueReceive(queueHandle, &tempItem, 0);
     free(tempItem.buf);
+    M5_LOGI();
   }
+  M5_LOGI();
   xQueueSend(queueHandle, jpegItem, 0);
+  M5_LOGI();
 }
 
 void getProfStartAndEnd(u_int8_t angle, u_int32_t width, u_int32_t height, u_int32_t *startX, u_int32_t *endX, u_int32_t *startY, u_int32_t *endY, size_t *len, int32_t *addressStep)
@@ -276,9 +281,9 @@ void getProfStartAndEnd(u_int8_t angle, u_int32_t width, u_int32_t height, u_int
   }
   else // if (angle == 90)
   {
-    *startX = width / 2;
+    *startX = width / 2 + storeData.pixLineShiftUp;
     *startY = 0;
-    *endX = width / 2;
+    *endX = width / 2 + storeData.pixLineShiftUp;
     *endY = height;
     *len = height;
     *addressStep = 3 * width;
@@ -417,7 +422,7 @@ void ImageProcessingLoop(void *arg)
       uint8_t *frame_Jpeg_Last = (uint8_t *)ps_malloc(jpegItem.len);
       memcpy(frame_Jpeg_Last, jpegItem.buf, jpegItem.len);
       JpegItem jpegItem_Last = {jpegItem.epoc, frame_Jpeg_Last, jpegItem.len};
-
+      M5_LOGD("addJpegItemToQueue");
       addJpegItemToQueue(xQueueJpeg_Store, &jpegItem);
       addJpegItemToQueue(xQueueJpeg_Last, &jpegItem_Last);
 
@@ -496,7 +501,7 @@ void DataSaveLoop(void *arg)
     {
       M5_LOGW("ftp is not Connected.");
 
-      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+      if (xSemaphoreTakeRetry(mutex_Ethernet, 3))
       {
         M5_LOGD("mutex take");
         ftp.OpenConnection();
@@ -507,11 +512,12 @@ void DataSaveLoop(void *arg)
       else
       {
         M5_LOGW("mutex can not take.");
+        delay(1000);
+        continue;
       }
-
-      delay(1000);
     }
-    else
+
+    if (ftp.isConnected())
     {
       M5_LOGD("ftp is Connected.");
 
@@ -532,10 +538,9 @@ void DataSaveLoop(void *arg)
           String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
           String filePath = directoryPath + "/" + createFilenameFromEpoc(jpegItem.epoc, storeData.ftpImageSaveInterval, false);
 
-          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
           {
             M5_LOGD("mutex take");
-
             ftp.MakeDirRecursive(directoryPath);
             ftp.AppendData(filePath + ".jpg", (u_char *)(jpegItem.buf), (int)(jpegItem.len));
             xSemaphoreGive(mutex_Ethernet);
@@ -547,6 +552,7 @@ void DataSaveLoop(void *arg)
           }
         }
         free(jpegItem.buf);
+        delay(1); // wdt notice
       }
 
       EdgeItem edgeItem;
@@ -562,7 +568,7 @@ void DataSaveLoop(void *arg)
           String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
           String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
 
-          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
           {
             M5_LOGD("mutex take");
 
@@ -591,7 +597,7 @@ void DataSaveLoop(void *arg)
           String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
           String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
 
-          if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+          if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
           {
             M5_LOGD("mutex take");
 
