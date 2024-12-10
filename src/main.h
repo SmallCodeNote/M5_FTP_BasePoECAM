@@ -9,7 +9,9 @@
 
 #define MUX_BLOCK_TIM 1000 // mutex block time
 
-#define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 30
+#define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 60
+#define MAIN_LOOP_QUEUE_EDGE_SRC_SIZE 120
+#define MAIN_LOOP_QUEUE_PROF_SRC_SIZE 60
 #define MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX 1024
 
 struct JpegItem
@@ -56,6 +58,9 @@ extern QueueHandle_t xQueueEdge_Last;
 extern QueueHandle_t xQueueProf_Last;
 
 extern SemaphoreHandle_t mutex_Ethernet;
+extern SemaphoreHandle_t mutex_FTP;
+
+
 // extern portMUX_TYPE mutex_Ethernet;
 bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
 

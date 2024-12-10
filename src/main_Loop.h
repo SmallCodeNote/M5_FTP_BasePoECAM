@@ -24,6 +24,9 @@ void ImageStoreLoop(void *arg);
 void ImageProcessingLoop(void *arg);
 uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem);
 void DataSaveLoop(void *arg);
+void DataSaveLoop_Jpeg(void *arg);
+void DataSaveLoop_Edge(void *arg);
+void DataSaveLoop_Prof(void *arg);
 
 String createFilenameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);
 String createDirectorynameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);

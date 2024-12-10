@@ -28,6 +28,7 @@
 
 // portMUX_TYPE mutex_Ethernet = portMUX_INITIALIZER_UNLOCKED;
 SemaphoreHandle_t mutex_Ethernet;
+SemaphoreHandle_t mutex_FTP;
 
 bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec)
 {
@@ -260,7 +261,10 @@ void setup()
   {
     mutex_Ethernet = xSemaphoreCreateMutex();
   }
-
+  if (mutex_FTP == NULL)
+  {
+    mutex_FTP = xSemaphoreCreateMutex();
+  }
   M5.Log.setLogLevel(m5::log_target_serial, ESP_LOG_VERBOSE);
   delay(500); // M5_Log starting wait
 
@@ -295,7 +299,11 @@ void setup()
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
   xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 4096, NULL, 2, NULL, 0);
   xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
-  xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 0, NULL, 0);
+
+  //xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 3, NULL, 0);
+  xTaskCreatePinnedToCore(DataSaveLoop_Jpeg, "DataSaveLoop_Jpeg", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(DataSaveLoop_Edge, "DataSaveLoop_Edge", 4096, NULL, 1, NULL, 0);
+  xTaskCreatePinnedToCore(DataSaveLoop_Prof, "DataSaveLoop_Prof", 4096, NULL, 1, NULL, 0);
 
   xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 1);
