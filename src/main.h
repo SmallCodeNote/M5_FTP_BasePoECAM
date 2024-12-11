@@ -7,7 +7,7 @@
 
 #define FLASH_EN_PIN 25
 
-#define MUX_BLOCK_TIM 1000 // mutex block time
+#define MUX_BLOCK_TIM 300 // mutex block time
 
 #define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 60
 #define MAIN_LOOP_QUEUE_EDGE_SRC_SIZE 120
@@ -22,6 +22,9 @@ struct JpegItem
   pixformat_t pixformat;
   u_int32_t width;
   u_int32_t height;
+
+  String dirPath;
+  String filePath;
 };
 
 struct ProfItem
@@ -29,6 +32,9 @@ struct ProfItem
   unsigned long epoc;
   size_t len;
   u_int16_t *buf;
+
+  String dirPath;
+  String filePath;
 };
 
 struct EdgeItem
@@ -50,8 +56,11 @@ extern M5_Ethernet_FtpClient ftp;
 extern M5_Ethernet_NtpClient NtpClient;
 
 extern QueueHandle_t xQueueJpeg_Store;
-extern QueueHandle_t xQueueEdge_Store;
 extern QueueHandle_t xQueueProf_Store;
+extern QueueHandle_t xQueueEdge_Store;
+
+extern QueueHandle_t xQueueJpeg_Sorted;
+extern QueueHandle_t xQueueProf_Sorted;
 
 extern QueueHandle_t xQueueJpeg_Last;
 extern QueueHandle_t xQueueEdge_Last;
@@ -59,7 +68,6 @@ extern QueueHandle_t xQueueProf_Last;
 
 extern SemaphoreHandle_t mutex_Ethernet;
 extern SemaphoreHandle_t mutex_FTP;
-
 
 // extern portMUX_TYPE mutex_Ethernet;
 bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);

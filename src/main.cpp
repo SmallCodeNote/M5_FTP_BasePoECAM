@@ -301,6 +301,7 @@ void setup()
   xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
 
   //xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 3, NULL, 0);
+  //xTaskCreatePinnedToCore(DataSortLoop_Jpeg, "DataSortLoop_Jpeg", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Jpeg, "DataSaveLoop_Jpeg", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Edge, "DataSaveLoop_Edge", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Prof, "DataSaveLoop_Prof", 4096, NULL, 1, NULL, 0);
