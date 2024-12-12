@@ -11,12 +11,22 @@
 
 void TimeUpdateLoop(void *arg)
 {
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t uxHighWaterMarkMax = 0;
+
   M5_LOGI("TimeUpdateLoop Start  ");
 
   while (true)
   {
     delay(100);
     NtpClient.updateCurrentEpoch();
+
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    if (uxHighWaterMarkMax < uxHighWaterMark)
+    {
+      uxHighWaterMarkMax = uxHighWaterMark;
+      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
+    }
   }
 
   vTaskDelete(NULL);
@@ -26,12 +36,14 @@ void TimeServerAccessLoop(void *arg)
 {
   M5_LOGI("TimeServerAccessLoop Start  ");
   unsigned long count = 60;
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+
   while (true)
   {
     delay(10000);
     if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
-      M5_LOGV("");
+      M5_LOGV("%u", uxHighWaterMark);
       if (xSemaphoreTakeRetry(mutex_Ethernet, 1))
       {
         M5_LOGV("");
@@ -51,6 +63,7 @@ void TimeServerAccessLoop(void *arg)
     {
       count++;
     }
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   }
   vTaskDelete(NULL);
 }
@@ -381,6 +394,9 @@ void getImageProfile(uint8_t *bitmap_buf, uint16_t *prof, JpegItem item, size_t 
 
 void ImageProcessingLoop(void *arg)
 {
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t uxHighWaterMarkMax = 0;
+
   M5_LOGI("");
   xQueueJpeg_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
   xQueueProf_Store = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
@@ -443,6 +459,13 @@ void ImageProcessingLoop(void *arg)
       delay(1);
     }
 
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    if (uxHighWaterMarkMax < uxHighWaterMark)
+    {
+      uxHighWaterMarkMax = uxHighWaterMark;
+      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
+    }
+
     delay(1);
   }
   vTaskDelete(NULL);
@@ -480,8 +503,19 @@ uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
 
 void HTTPLoop(void *arg)
 {
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t uxHighWaterMarkMax = 0;
+
+  M5_LOGI("HTTPLoop Start");
+
   while (true)
   {
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    if (uxHighWaterMarkMax < uxHighWaterMark)
+    {
+      uxHighWaterMarkMax = uxHighWaterMark;
+      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
+    }
     HTTP_UI();
     delay(10);
   }
@@ -531,22 +565,31 @@ bool ftpCloseCheck()
   }
   return true;
 }
-/*
+
 void DataSortLoop_Jpeg(void *arg)
 {
-  xQueueJpeg_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t uxHighWaterMarkMax = 0;
 
-  QueueHandle_t xQueueJpeg_Recycle = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  xQueueJpeg_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
   unsigned long lastCheckEpoc = 0;
   unsigned long nextSaveEpoc = 0;
   unsigned long loopStartMillis = millis();
 
-  int queueCheckLevel = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
+  int queueCheckFrequency = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
   String directoryPath_Before = "";
 
   while (true)
   {
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    if (uxHighWaterMarkMax < uxHighWaterMark)
+    {
+      uxHighWaterMarkMax = uxHighWaterMark;
+      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
+    }
+
     if (xQueueJpeg_Store == NULL)
     {
       M5_LOGW("null queue");
@@ -556,7 +599,7 @@ void DataSortLoop_Jpeg(void *arg)
 
     UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Store);
     M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-    if (queueWaitingCount > queueCheckLevel)
+    if (queueWaitingCount > queueCheckFrequency)
     {
       JpegItem item;
       u_int16_t saveInterval = storeData.ftpImageSaveInterval;
@@ -575,13 +618,14 @@ void DataSortLoop_Jpeg(void *arg)
         {
           M5_LOGI("Jpeg save : interval = %u", saveInterval);
           nextSaveEpoc = item.epoc + saveInterval;
-          item.dirPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, false);
-          item.filePath = item.dirPath + "/" + createFilenameFromEpoc(item.epoc, saveInterval, false);
+          sprintf(item.dirPath, "%s", (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, false)).c_str());
+          sprintf(item.filePath, "%s", (String(item.dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, false)).c_str());
+          // M5_LOGW("send:| %s |", item.filePath);
           addJpegItemToQueue(xQueueJpeg_Sorted, &item);
         }
         else
         {
-          addJpegItemToQueue(xQueueJpeg_Recycle, &item);
+          addJpegItemToQueue(xQueue_FreeWaiting, &item);
         }
       }
     }
@@ -589,8 +633,9 @@ void DataSortLoop_Jpeg(void *arg)
     M5_LOGI("loopTime = %u", millis() - loopStartMillis);
 
     JpegItem jpegItemBuff;
-    while (xQueueReceive(xQueueJpeg_Recycle, &jpegItemBuff, 0) == pdTRUE)
+    while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 0) == pdTRUE)
     {
+      // M5_LOGW("free:| %s |", jpegItemBuff.filePath);
       free(jpegItemBuff.buf);
     }
 
@@ -608,7 +653,10 @@ void DataSortLoop_Jpeg(void *arg)
 
 void DataSaveLoop_Jpeg(void *arg)
 {
-  QueueHandle_t xQueueJpeg_Recycle = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t uxHighWaterMarkMax = 0;
+
+  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
   unsigned long lastCheckEpoc = 0;
   unsigned long nextSaveEpoc = 0;
@@ -618,10 +666,18 @@ void DataSaveLoop_Jpeg(void *arg)
 
   while (true)
   {
+    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
+    if (uxHighWaterMarkMax < uxHighWaterMark)
+    {
+      uxHighWaterMarkMax = uxHighWaterMark;
+      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
+    }
+
     if (xQueueJpeg_Sorted == NULL)
     {
       M5_LOGW("null queue");
       delay(100);
+      loopStartMillis = millis();
       continue;
     }
 
@@ -634,58 +690,15 @@ void DataSaveLoop_Jpeg(void *arg)
       {
         M5_LOGW("ftp mutex can not take.");
         delay(100);
+        loopStartMillis = millis();
         continue;
       }
 
       ftpOpenCheck();
-      if (ftp.isConnected())
-      {
-        M5_LOGD("ftp is Connected.");
-        M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
 
-        JpegItem item;
-        u_int16_t saveInterval = storeData.ftpImageSaveInterval;
-        directoryPath_Before = "";
-
-        queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
-        M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
-        while (queueWaitingCount > 0)
-        {
-          M5_LOGI();
-          if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
-          {
-            M5_LOGD("mutex take");
-            if (xQueueReceive(xQueueJpeg_Sorted, &item, 0) == pdTRUE)
-            {
-              if (directoryPath_Before != item.dirPath)
-                ftp.MakeDirRecursive(item.dirPath);
-              ftp.AppendData(item.filePath + ".jpg", (u_char *)(item.buf), (int)(item.len));
-              directoryPath_Before = item.dirPath;
-              addJpegItemToQueue(xQueueJpeg_Recycle, &item);
-            }
-            else
-            {
-              M5_LOGE();
-            }
-            M5_LOGI("mutex give");
-            xSemaphoreGive(mutex_Ethernet);
-            delay(1);
-            M5_LOGI();
-          }
-          else
-          {
-            M5_LOGW("mutex can not take.");
-            delay(30);
-          };
-          M5_LOGI();
-          queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
-          M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
-        }
-        M5_LOGI();
-      }
-      else
+      if (!ftp.isConnected())
       {
-        M5_LOGI("mutex give");
+        M5_LOGI("ftp mutex give");
         xSemaphoreGive(mutex_FTP);
         M5_LOGI();
 
@@ -694,13 +707,58 @@ void DataSaveLoop_Jpeg(void *arg)
         continue;
       }
 
+      M5_LOGD("ftp Connected.");
+
+      JpegItem item;
+      u_int16_t saveInterval = storeData.ftpImageSaveInterval;
+      directoryPath_Before = "";
+
+      queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
+      M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+      while (queueWaitingCount > 0)
+      {
+        M5_LOGI();
+        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+        {
+          M5_LOGD("mutex take");
+          if (xQueueReceive(xQueueJpeg_Sorted, &item, 0) == pdTRUE)
+          {
+            // M5_LOGD("CreateDirectory: %s", item.dirPath);
+            if (directoryPath_Before != item.dirPath)
+              ftp.MakeDirRecursive(item.dirPath);
+            // M5_LOGD("CreateFilepath: %s", item.filePath);
+            ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
+            directoryPath_Before = item.dirPath;
+            addJpegItemToQueue(xQueue_FreeWaiting, &item);
+          }
+          else
+          {
+            M5_LOGE();
+          }
+          M5_LOGI("mutex give");
+          xSemaphoreGive(mutex_Ethernet);
+          delay(1);
+          M5_LOGI();
+        }
+        else
+        {
+          M5_LOGW("mutex can not take.");
+          delay(30);
+        };
+        M5_LOGI();
+        queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
+        M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+      }
+      M5_LOGI();
+
       M5_LOGI("loopTime = %u", millis() - loopStartMillis);
       M5_LOGI("mutex give");
       xSemaphoreGive(mutex_FTP);
 
       JpegItem jpegItemBuff;
-      while (xQueueReceive(xQueueJpeg_Recycle, &jpegItemBuff, 0) == pdTRUE)
+      while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 1) == pdTRUE)
       {
+        // M5_LOGE("free:| %s |", jpegItemBuff.filePath);
         free(jpegItemBuff.buf);
       }
     }
@@ -717,7 +775,7 @@ void DataSaveLoop_Jpeg(void *arg)
   M5_LOGE("LoopEnd");
   vTaskDelete(NULL);
 }
-*/
+/*
 
 void DataSaveLoop_Jpeg(void *arg)
 {
@@ -725,11 +783,11 @@ void DataSaveLoop_Jpeg(void *arg)
   unsigned long nextSaveEpoc = 0;
   unsigned long loopStartMillis = millis();
 
-  int queueCheckLevel = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
+  int queueCheckFrequency = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
 
   String directoryPath_Before = "";
 
-  QueueHandle_t xQueueJpeg_Recycle = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
   while (true)
   {
@@ -747,7 +805,7 @@ void DataSaveLoop_Jpeg(void *arg)
 
       UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Store);
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-      if (queueWaitingCount > queueCheckLevel)
+      if (queueWaitingCount > queueCheckFrequency)
       {
         if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
         {
@@ -778,7 +836,7 @@ void DataSaveLoop_Jpeg(void *arg)
 
 
             }
-            addJpegItemToQueue(xQueueJpeg_Recycle, &item);
+            addJpegItemToQueue(xQueue_FreeWaiting, &item);
             // free(item.buf);
           }
           xSemaphoreGive(mutex_Ethernet);
@@ -807,7 +865,7 @@ void DataSaveLoop_Jpeg(void *arg)
     xSemaphoreGive(mutex_FTP);
 
     JpegItem jpegItemBuff;
-    while (xQueueReceive(xQueueJpeg_Recycle, &jpegItemBuff, 0) == pdTRUE)
+    while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 0) == pdTRUE)
     {
       free(jpegItemBuff.buf);
     }
@@ -824,7 +882,7 @@ void DataSaveLoop_Jpeg(void *arg)
   M5_LOGE("LoopEnd");
   vTaskDelete(NULL);
 }
-
+*/
 
 void DataSaveLoop_Edge(void *arg)
 {
@@ -832,8 +890,8 @@ void DataSaveLoop_Edge(void *arg)
   unsigned long nextSaveEpoc_Edge = 0;
   unsigned long loopStartMillis = millis();
 
-  int queueCheckLevel = storeData.ftpEdgeSaveInterval / storeData.imageBufferingEpochInterval;
-  queueCheckLevel = queueCheckLevel < 10 ? 10 : queueCheckLevel;
+  int queueCheckFrequency = storeData.ftpEdgeSaveInterval / storeData.imageBufferingEpochInterval;
+  queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
 
   String directoryPath_Before = "";
 
@@ -853,7 +911,7 @@ void DataSaveLoop_Edge(void *arg)
 
       UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Store);
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-      if (queueWaitingCount > queueCheckLevel)
+      if (queueWaitingCount > queueCheckFrequency)
       {
         if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
         {
@@ -920,14 +978,14 @@ void DataSaveLoop_Edge(void *arg)
 
 void DataSaveLoop_Prof(void *arg)
 {
-  QueueHandle_t xQueue_Recycle = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
+  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
 
   unsigned long lastCheckEpoc_Prof = 0;
   unsigned long nextSaveEpoc_Prof = 0;
   unsigned long loopStartMillis = millis();
 
-  int queueCheckLevel = storeData.ftpProfileSaveInterval / storeData.imageBufferingEpochInterval;
-  // queueCheckLevel = queueCheckLevel < 10 ? 10 : queueCheckLevel;
+  int queueCheckFrequency = storeData.ftpProfileSaveInterval / storeData.imageBufferingEpochInterval;
+  // queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
   String directoryPath_Before = "";
 
   while (true)
@@ -946,7 +1004,7 @@ void DataSaveLoop_Prof(void *arg)
 
       UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueProf_Store);
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-      if (queueWaitingCount > queueCheckLevel)
+      if (queueWaitingCount > queueCheckFrequency)
       {
         if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
         {
@@ -977,7 +1035,7 @@ void DataSaveLoop_Prof(void *arg)
               directoryPath_Before = directoryPath;
             }
 
-            addProfItemToQueue(xQueue_Recycle, &profItem);
+            addProfItemToQueue(xQueue_FreeWaiting, &profItem);
             // free(profItem.buf);
           }
           xSemaphoreGive(mutex_Ethernet);
@@ -1003,7 +1061,7 @@ void DataSaveLoop_Prof(void *arg)
     xSemaphoreGive(mutex_FTP);
 
     ProfItem profItemBuff;
-    while (xQueueReceive(xQueue_Recycle, &profItemBuff, 0) == pdTRUE)
+    while (xQueueReceive(xQueue_FreeWaiting, &profItemBuff, 0) == pdTRUE)
     {
       free(profItemBuff.buf);
     }
@@ -1306,8 +1364,29 @@ String createDirectorynameFromEpoc(unsigned long currentEpoch, u_int16_t interva
   String MM = NtpClient.readMonth(currentEpoch);
   String YYYY = NtpClient.readYear(currentEpoch);
 
-  if (multiLine && interval >= 30)
-    return YYYY + "/" + YYYY + MM;
-
+  if (multiLine)
+  {
+    if (interval >= 30)
+      return YYYY + "/" + YYYY + MM;
+      
+    return YYYY + "/" + YYYY + MM + DD;
+  }
+  else
+  {
+    if (interval >= 3600) // ~ 744files / directory
+      return YYYY + "/" + YYYY + MM;
+    if (interval >= 120) // 24 ~ 720files / directory
+      return YYYY + "/" + YYYY + MM + DD;
+    if (interval >= 60) // 360~ 720files / directory
+      return YYYY + "/" + YYYY + MM + DD + "_" + NtpClient.readHour(currentEpoch, 12) + "00";
+    if (interval >= 30) // 360~ 720files / directory
+      return YYYY + "/" + YYYY + MM + DD + "_" + NtpClient.readHour(currentEpoch, 6) + "00";
+    if (interval >= 10) // 240~ 720files / directory
+      return YYYY + "/" + YYYY + MM + DD + "/" + YYYY + MM + DD + "_" + NtpClient.readHour(currentEpoch, 2) + "00";
+    if (interval >= 5) // 360~ 720files / directory
+      return YYYY + "/" + YYYY + MM + DD + "/" + YYYY + MM + DD + "_" + HH + "00";
+    // 120~ 600files / directory
+    return YYYY + "/" + YYYY + MM + DD + "/" + YYYY + MM + DD + "_" + HH + String(mm[0]) + "0";
+  }
   return YYYY + "/" + YYYY + MM + "/" + YYYY + MM + DD;
 }

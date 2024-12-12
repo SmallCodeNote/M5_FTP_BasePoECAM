@@ -23,8 +23,8 @@ struct JpegItem
   u_int32_t width;
   u_int32_t height;
 
-  String dirPath;
-  String filePath;
+  char dirPath[128];
+  char filePath[128];
 };
 
 struct ProfItem
@@ -33,8 +33,8 @@ struct ProfItem
   size_t len;
   u_int16_t *buf;
 
-  String dirPath;
-  String filePath;
+  char dirPath[128];
+  char filePath[128];
 };
 
 struct EdgeItem
