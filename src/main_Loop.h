@@ -9,27 +9,35 @@ typedef struct
 } SensorShotTaskParams;
 */
 
+//void SensorShotLoop(void *arg);
+//void SensorShotTask(void *param);
+
 
 void TimeUpdateLoop(void *arg);
 void TimeServerAccessLoop(void *arg);
 
 void ButtonKeepCountLoop(void *arg);
 
-void HTTPLoop(void *arg);
-
-void SensorShotLoop(void *arg);
-void SensorShotTask(void *param);
-bool SensorShotTaskRunTrigger(unsigned long currentEpoch);
-unsigned long SensorShotStartOffset();
-
 void ImageStoreLoop(void *arg);
 void ImageProcessingLoop(void *arg);
-uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem);
-void DataSaveLoop(void *arg);
+
+void HTTPLoop(void *arg);
+
 void DataSortLoop_Jpeg(void *arg);
 void DataSaveLoop_Jpeg(void *arg);
 void DataSaveLoop_Edge(void *arg);
 void DataSaveLoop_Prof(void *arg);
+
+
+
+
+
+//void DataSaveLoop(void *arg);
+//bool SensorShotTaskRunTrigger(unsigned long currentEpoch);
+//unsigned long SensorShotStartOffset();
+uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem);
+
+void stackDepthMaxUpdate(UBaseType_t *stackDepthMax, const char *functionName);
 
 String createFilenameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);
 String createDirectorynameFromEpoc(unsigned long currentEpoch, u_int16_t interval, bool multiLine);

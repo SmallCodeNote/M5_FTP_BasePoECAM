@@ -9,26 +9,30 @@
 
 #include <cmath>
 
+UBaseType_t stackDepthMax_TimeUpdateLoop;
+UBaseType_t stackDepthMax_TimeServerAccessLoop;
+UBaseType_t stackDepthMax_ButtonKeepCountLoop;
+UBaseType_t stackDepthMax_HTTPLoop;
+UBaseType_t stackDepthMax_ImageStoreLoop;
+UBaseType_t stackDepthMax_ImageProcessingLoop;
+UBaseType_t stackDepthMax_DataSortLoop_Jpeg;
+UBaseType_t stackDepthMax_DataSaveLoop_Jpeg;
+UBaseType_t stackDepthMax_DataSaveLoop_Edge;
+UBaseType_t stackDepthMax_DataSaveLoop_Prof;
+
 void TimeUpdateLoop(void *arg)
 {
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t uxHighWaterMarkMax = 0;
-
   M5_LOGI("TimeUpdateLoop Start  ");
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_TimeUpdateLoop, pcTaskGetTaskName(NULL));
+
     delay(100);
     NtpClient.updateCurrentEpoch();
-
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    if (uxHighWaterMarkMax < uxHighWaterMark)
-    {
-      uxHighWaterMarkMax = uxHighWaterMark;
-      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
-    }
   }
 
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -36,14 +40,14 @@ void TimeServerAccessLoop(void *arg)
 {
   M5_LOGI("TimeServerAccessLoop Start  ");
   unsigned long count = 60;
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_TimeServerAccessLoop, pcTaskGetTaskName(NULL));
+
     delay(10000);
     if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
-      M5_LOGV("%u", uxHighWaterMark);
       if (xSemaphoreTakeRetry(mutex_Ethernet, 1))
       {
         M5_LOGV("");
@@ -63,8 +67,8 @@ void TimeServerAccessLoop(void *arg)
     {
       count++;
     }
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
   }
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -72,11 +76,12 @@ void ButtonKeepCountLoop(void *arg)
 {
   M5_LOGI("ButtonKeepCountLoop Start  ");
   int PushKeepSubSecCounter = 0;
-
   bool pushBeforeCheckSpan = false;
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_ButtonKeepCountLoop, pcTaskGetTaskName(NULL));
+
     delay(100);
     PoECAM.update();
 
@@ -132,6 +137,8 @@ void ImageStoreLoop(void *arg)
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_ImageStoreLoop, pcTaskGetTaskName(NULL));
+
     unsigned long currentEpoch = NtpClient.currentEpoch;
 
     if (flashMode != storeData.flashIntensityMode)
@@ -195,7 +202,7 @@ void ImageStoreLoop(void *arg)
 
     delay(100);
   }
-  M5_LOGE("LoopEnd");
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -392,10 +399,20 @@ void getImageProfile(uint8_t *bitmap_buf, uint16_t *prof, JpegItem item, size_t 
   }
 }
 
+void stackDepthMaxUpdate(UBaseType_t *stackDepthMax, const char *functionName)
+{
+  UBaseType_t stackDepth = uxTaskGetStackHighWaterMark(NULL);
+  if (*stackDepthMax < stackDepth)
+  {
+    *stackDepthMax = stackDepth;
+    M5_LOGW("%s : stackDepthMax = %u", functionName, *stackDepthMax);
+  }
+}
+
 void ImageProcessingLoop(void *arg)
 {
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t uxHighWaterMarkMax = 0;
+  UBaseType_t stackDepth = uxTaskGetStackHighWaterMark(NULL);
+  UBaseType_t stackDepthMax = 0;
 
   M5_LOGI("");
   xQueueJpeg_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
@@ -406,9 +423,11 @@ void ImageProcessingLoop(void *arg)
   xQueueProf_Last = xQueueCreate(1, sizeof(ProfItem));
   xQueueEdge_Last = xQueueCreate(1, sizeof(EdgeItem));
 
+  JpegItem item;
+
   while (true)
   {
-    JpegItem item;
+    stackDepthMaxUpdate(&stackDepthMax_ImageProcessingLoop, pcTaskGetTaskName(NULL));
 
     while (xQueueJpeg_Src != NULL && xQueueReceive(xQueueJpeg_Src, &item, 0) == pdPASS)
     {
@@ -459,17 +478,11 @@ void ImageProcessingLoop(void *arg)
       delay(1);
     }
 
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    if (uxHighWaterMarkMax < uxHighWaterMark)
-    {
-      uxHighWaterMarkMax = uxHighWaterMark;
-      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
-    }
-
     delay(1);
   }
+
   vTaskDelete(NULL);
-  M5_LOGE("LoopEnd");
+  M5_LOGE("Loop STOP");
 }
 
 uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
@@ -503,22 +516,16 @@ uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
 
 void HTTPLoop(void *arg)
 {
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t uxHighWaterMarkMax = 0;
-
   M5_LOGI("HTTPLoop Start");
 
   while (true)
   {
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    if (uxHighWaterMarkMax < uxHighWaterMark)
-    {
-      uxHighWaterMarkMax = uxHighWaterMark;
-      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
-    }
+    stackDepthMaxUpdate(&stackDepthMax_HTTPLoop, pcTaskGetTaskName(NULL));
     HTTP_UI();
     delay(10);
   }
+
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -568,9 +575,6 @@ bool ftpCloseCheck()
 
 void DataSortLoop_Jpeg(void *arg)
 {
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t uxHighWaterMarkMax = 0;
-
   xQueueJpeg_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
@@ -583,12 +587,7 @@ void DataSortLoop_Jpeg(void *arg)
 
   while (true)
   {
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    if (uxHighWaterMarkMax < uxHighWaterMark)
-    {
-      uxHighWaterMarkMax = uxHighWaterMark;
-      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
-    }
+    stackDepthMaxUpdate(&stackDepthMax_DataSortLoop_Jpeg, pcTaskGetTaskName(NULL));
 
     if (xQueueJpeg_Store == NULL)
     {
@@ -637,6 +636,7 @@ void DataSortLoop_Jpeg(void *arg)
     {
       // M5_LOGW("free:| %s |", jpegItemBuff.filePath);
       free(jpegItemBuff.buf);
+      // freeJpegItem(&jpegItemBuff);
     }
 
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
@@ -647,15 +647,12 @@ void DataSortLoop_Jpeg(void *arg)
     loopStartMillis = millis();
   }
 
-  M5_LOGE("LoopEnd");
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
 void DataSaveLoop_Jpeg(void *arg)
 {
-  UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t uxHighWaterMarkMax = 0;
-
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
   unsigned long lastCheckEpoc = 0;
@@ -666,12 +663,7 @@ void DataSaveLoop_Jpeg(void *arg)
 
   while (true)
   {
-    uxHighWaterMark = uxTaskGetStackHighWaterMark(NULL);
-    if (uxHighWaterMarkMax < uxHighWaterMark)
-    {
-      uxHighWaterMarkMax = uxHighWaterMark;
-      M5_LOGW("StackHighWaterMark = %u", uxHighWaterMarkMax);
-    }
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Jpeg, pcTaskGetTaskName(NULL));
 
     if (xQueueJpeg_Sorted == NULL)
     {
@@ -760,6 +752,7 @@ void DataSaveLoop_Jpeg(void *arg)
       {
         // M5_LOGE("free:| %s |", jpegItemBuff.filePath);
         free(jpegItemBuff.buf);
+        // freeJpegItem(&jpegItemBuff);
       }
     }
 
@@ -772,7 +765,7 @@ void DataSaveLoop_Jpeg(void *arg)
   }
 
   ftpCloseCheck();
-  M5_LOGE("LoopEnd");
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 /*
@@ -897,6 +890,7 @@ void DataSaveLoop_Edge(void *arg)
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, pcTaskGetTaskName(NULL));
     if (xSemaphoreTake(mutex_FTP, 500) != pdTRUE)
     {
       delay(10);
@@ -972,7 +966,7 @@ void DataSaveLoop_Edge(void *arg)
   }
 
   ftpCloseCheck();
-  M5_LOGE("LoopEnd");
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -990,6 +984,8 @@ void DataSaveLoop_Prof(void *arg)
 
   while (true)
   {
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, pcTaskGetTaskName(NULL));
+
     if (xSemaphoreTake(mutex_FTP, 500) != pdTRUE)
     {
       delay(10);
@@ -1075,7 +1071,8 @@ void DataSaveLoop_Prof(void *arg)
   }
 
   ftpCloseCheck();
-  M5_LOGE("LoopEnd");
+
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 
@@ -1368,7 +1365,7 @@ String createDirectorynameFromEpoc(unsigned long currentEpoch, u_int16_t interva
   {
     if (interval >= 30)
       return YYYY + "/" + YYYY + MM;
-      
+
     return YYYY + "/" + YYYY + MM + DD;
   }
   else
