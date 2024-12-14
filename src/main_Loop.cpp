@@ -38,7 +38,6 @@ void TimeUpdateLoop(void *arg)
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_TimeUpdateLoop, pcTaskGetTaskName(NULL));
-
     delay(100);
     NtpClient.updateCurrentEpoch();
   }
@@ -53,12 +52,13 @@ void TimeServerAccessLoop(void *arg)
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_TimeServerAccessLoop, pcTaskGetTaskName(NULL));
-
     delay(10000);
+
     if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
       if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
       {
+        mutex_Ethernet_Take_FunctionName = __FUNCTION__;
         NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
         mutex_Ethernet_Take_FunctionName = "NAN";
         xSemaphoreGive(mutex_Ethernet);
@@ -127,26 +127,19 @@ void ImageStoreLoop(void *arg)
   unsigned long lastCheckEpoc = 0, nextBufferingEpoc = 0;
   unsigned long lastShotMillis = 0, nowShotMillis = 0;
   uint16_t *flashLength = &(storeData.flashLength);
-
   u_int8_t flashMode = (storeData.flashIntensityMode);
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_ImageStoreLoop, pcTaskGetTaskName(NULL));
-
-    unsigned long currentEpoch = NtpClient.currentEpoch;
-
     if (flashMode != storeData.flashIntensityMode)
     {
       unit_flash_set_brightness(storeData.flashIntensityMode);
       flashMode = storeData.flashIntensityMode;
     }
-    /*
-    if (flashLength != storeData.flashLength)
-    {
-      flashLength = storeData.flashLength;
-    }
-*/
+
+    stackDepthMaxUpdate(&stackDepthMax_ImageStoreLoop, pcTaskGetTaskName(NULL));
+    unsigned long currentEpoch = NtpClient.currentEpoch;
+
     if (currentEpoch == 0)
     {
       currentEpoch = millis() / 1000;
@@ -179,7 +172,6 @@ void ImageStoreLoop(void *arg)
         PoECAM.Camera.free();
 
         JpegItem item = {currentEpoch, frame_Jpeg, frame_len, pixmode, fb_width, fb_height};
-
         addJpegItemToQueue(xQueueJpeg_Src, &item);
       }
 
@@ -439,7 +431,7 @@ void ImageProcessingLoop(void *arg)
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_ImageProcessingLoop, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_ImageProcessingLoop, __FUNCTION__);
 
     if (xQueueJpeg_Src == NULL)
     {
@@ -453,10 +445,8 @@ void ImageProcessingLoop(void *arg)
     {
       if (xQueueReceive(xQueueJpeg_Src, &item, 0) == pdPASS)
       {
-        // M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
         int bufIndexMax = 3 * item.width * item.height;
         uint8_t *bitmap_buf = (uint8_t *)ps_malloc(bufIndexMax);
-
         fmt2rgb888(item.buf, item.len, item.pixformat, bitmap_buf);
 
         uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
@@ -483,6 +473,7 @@ void ImageProcessingLoop(void *arg)
 
         EdgeItem edgeItem = {item.epoc, edgeX};
         EdgeItem edgeItemLast = {item.epoc, edgeX_Last};
+
         addEdgeItemToQueue(xQueueEdge_Store, &edgeItem);
         addEdgeItemToQueue(xQueueEdge_Last, &edgeItemLast);
 
@@ -548,7 +539,7 @@ void HTTPLoop(void *arg)
 {
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_HTTPLoop, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_HTTPLoop, __FUNCTION__);
     HTTP_UI();
     delay(10);
   }
@@ -566,12 +557,9 @@ bool ftpOpenCheck()
     if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
       mutex_Ethernet_Take_FunctionName = __FUNCTION__;
-      // M5_LOGD("mutex take");
       ftp.OpenConnection();
-      // M5_LOGI("ftp.OpenConnection() finished.");
       mutex_Ethernet_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_Ethernet);
-      // M5_LOGI("mutex give");
     }
     else
     {
@@ -617,7 +605,7 @@ void DataSortLoop_Jpeg(void *arg)
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_DataSortLoop_Jpeg, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_DataSortLoop_Jpeg, __FUNCTION__);
 
     if (xQueueJpeg_Store == NULL)
     {
@@ -689,7 +677,7 @@ void DataSaveLoop_Jpeg(void *arg)
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Jpeg, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Jpeg, __FUNCTION__);
 
     if (xQueueJpeg_Sorted == NULL)
     {
@@ -763,6 +751,7 @@ void DataSaveLoop_Jpeg(void *arg)
         else
         {
           M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+
           delay(30);
         };
         M5_LOGI();
@@ -809,7 +798,7 @@ void DataSaveLoop_Prof(void *arg)
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, __FUNCTION__);
 
     if (xSemaphoreTake(mutex_FTP, MUX_FTP_BLOCK_TIM) != pdTRUE)
     {
@@ -924,7 +913,7 @@ void DataSaveLoop_Edge(void *arg)
 
   while (true)
   {
-    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, pcTaskGetTaskName(NULL));
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, __FUNCTION__);
     if (xSemaphoreTake(mutex_FTP, MUX_FTP_BLOCK_TIM) != pdTRUE)
     {
       M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
