@@ -7,7 +7,8 @@
 
 #define FLASH_EN_PIN 25
 
-#define MUX_BLOCK_TIM 300 // mutex block time
+#define MUX_FTP_BLOCK_TIM 5000 // mutex block time
+#define MUX_ETH_BLOCK_TIM 3000 // mutex block time
 
 #define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 60
 #define MAIN_LOOP_QUEUE_EDGE_SRC_SIZE 120
@@ -69,7 +70,10 @@ extern QueueHandle_t xQueueProf_Last;
 extern SemaphoreHandle_t mutex_Ethernet;
 extern SemaphoreHandle_t mutex_FTP;
 
+extern String mutex_Ethernet_Take_FunctionName;
+extern String mutex_FTP_Take_FunctionName;
+
 // extern portMUX_TYPE mutex_Ethernet;
-bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
+//bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
 
 #endif

@@ -20,10 +20,21 @@ UBaseType_t stackDepthMax_DataSaveLoop_Jpeg;
 UBaseType_t stackDepthMax_DataSaveLoop_Edge;
 UBaseType_t stackDepthMax_DataSaveLoop_Prof;
 
+QueueHandle_t xQueueJpeg_Src;
+
+QueueHandle_t xQueueJpeg_Store;
+QueueHandle_t xQueueJpeg_Sorted;
+QueueHandle_t xQueueJpeg_Last;
+
+QueueHandle_t xQueueProf_Store;
+QueueHandle_t xQueueProf_Sorted;
+QueueHandle_t xQueueProf_Last;
+
+QueueHandle_t xQueueEdge_Store;
+QueueHandle_t xQueueEdge_Last;
+
 void TimeUpdateLoop(void *arg)
 {
-  M5_LOGI("TimeUpdateLoop Start  ");
-
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_TimeUpdateLoop, pcTaskGetTaskName(NULL));
@@ -38,9 +49,7 @@ void TimeUpdateLoop(void *arg)
 
 void TimeServerAccessLoop(void *arg)
 {
-  M5_LOGI("TimeServerAccessLoop Start  ");
   unsigned long count = 60;
-
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_TimeServerAccessLoop, pcTaskGetTaskName(NULL));
@@ -48,19 +57,16 @@ void TimeServerAccessLoop(void *arg)
     delay(10000);
     if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
-      if (xSemaphoreTakeRetry(mutex_Ethernet, 1))
+      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
       {
-        M5_LOGV("");
         NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
-        M5_LOGV("");
-
+        mutex_Ethernet_Take_FunctionName = "NAN";
         xSemaphoreGive(mutex_Ethernet);
       }
       else
       {
-        M5_LOGW("mutex can not take.");
+        M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
       }
-      M5_LOGV("");
       count = 0;
     }
     else
@@ -74,9 +80,8 @@ void TimeServerAccessLoop(void *arg)
 
 void ButtonKeepCountLoop(void *arg)
 {
-  M5_LOGI("ButtonKeepCountLoop Start  ");
-  int PushKeepSubSecCounter = 0;
   bool pushBeforeCheckSpan = false;
+  int PushKeepSubSecCounter = 0;
 
   while (true)
   {
@@ -96,17 +101,14 @@ void ButtonKeepCountLoop(void *arg)
       M5_LOGI("pushBeforeCheckSpan = true");
     if (!pushBeforeCheckSpan && PoECAM.BtnA.pressedFor(200))
     {
-      M5_LOGI("");
       pushBeforeCheckSpan = true;
     }
     if (pushBeforeCheckSpan && PoECAM.BtnA.releasedFor(1000))
     {
-      M5_LOGI("");
       pushBeforeCheckSpan = false;
     }
     if (pushBeforeCheckSpan && PoECAM.BtnA.pressedFor(1000))
     {
-      M5_LOGI("");
       break;
     }
   }
@@ -118,22 +120,15 @@ void ButtonKeepCountLoop(void *arg)
   vTaskDelete(NULL);
 }
 
-QueueHandle_t xQueueJpeg_Src;
-
 void ImageStoreLoop(void *arg)
 {
-  M5_LOGI("");
   xQueueJpeg_Src = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
-  unsigned long lastWriteEpoc = 0;
-  unsigned long lastCheckEpoc = 0;
-  unsigned long nextBufferingEpoc = 0;
+  unsigned long lastCheckEpoc = 0, nextBufferingEpoc = 0;
+  unsigned long lastShotMillis = 0, nowShotMillis = 0;
+  uint16_t *flashLength = &(storeData.flashLength);
 
-  unsigned long lastShotMillis = 0;
-  unsigned long nowShotMillis = 0;
-
-  u_int8_t flashMode = storeData.flashIntensityMode;
-  uint16_t flashLength = storeData.flashLength;
+  u_int8_t flashMode = (storeData.flashIntensityMode);
 
   while (true)
   {
@@ -146,46 +141,43 @@ void ImageStoreLoop(void *arg)
       unit_flash_set_brightness(storeData.flashIntensityMode);
       flashMode = storeData.flashIntensityMode;
     }
+    /*
     if (flashLength != storeData.flashLength)
     {
       flashLength = storeData.flashLength;
     }
-
+*/
     if (currentEpoch == 0)
     {
       currentEpoch = millis() / 1000;
     }
 
-    if (currentEpoch < lastWriteEpoc)
-      lastWriteEpoc = 0;
     if (currentEpoch - lastCheckEpoc > 1)
       M5_LOGW("EpocDeltaOver 1:");
 
     if (currentEpoch >= nextBufferingEpoc)
     {
-      // M5_LOGI("");
       if (flashMode > 0)
       {
         digitalWrite(FLASH_EN_PIN, HIGH);
-        // delay(30);
-        // M5_LOGD("currentEpoch = %u, nextBufferingEpoc = %u", currentEpoch, nextBufferingEpoc);
-        delay(flashLength);
+        delay(*flashLength);
       }
+
       nowShotMillis = millis();
       if (PoECAM.Camera.get())
       {
         digitalWrite(FLASH_EN_PIN, LOW);
-        // M5_LOGI("");
+
         uint8_t *frame_buf = PoECAM.Camera.fb->buf;
         size_t frame_len = PoECAM.Camera.fb->len;
         pixformat_t pixmode = PoECAM.Camera.fb->format;
         u_int32_t fb_width = (u_int32_t)(PoECAM.Camera.fb->width);
         u_int32_t fb_height = (u_int32_t)(PoECAM.Camera.fb->height);
-        // M5_LOGI("");
+
         uint8_t *frame_Jpeg = (uint8_t *)ps_malloc(frame_len);
         memcpy(frame_Jpeg, frame_buf, frame_len);
         PoECAM.Camera.free();
-        // M5_LOGI("");
+
         JpegItem item = {currentEpoch, frame_Jpeg, frame_len, pixmode, fb_width, fb_height};
 
         addJpegItemToQueue(xQueueJpeg_Src, &item);
@@ -205,17 +197,6 @@ void ImageStoreLoop(void *arg)
   M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
-
-QueueHandle_t xQueueJpeg_Store;
-QueueHandle_t xQueueProf_Store;
-QueueHandle_t xQueueEdge_Store;
-
-QueueHandle_t xQueueJpeg_Sorted;
-QueueHandle_t xQueueProf_Sorted;
-
-QueueHandle_t xQueueJpeg_Last;
-QueueHandle_t xQueueProf_Last;
-QueueHandle_t xQueueEdge_Last;
 
 u_int16_t channelSum(uint8_t *bitmap_pix)
 {
@@ -266,6 +247,41 @@ void freeProfItem(void *item)
 
 void freeEdgeItem(void *item)
 {
+}
+
+void freeAllItemFromQueue(QueueHandle_t queueHandle, size_t itemSize, void (*freeFunc)(void *))
+{
+  if (queueHandle != NULL)
+  {
+    while (uxQueueMessagesWaiting(queueHandle) > 0)
+    {
+      void *tempItem = malloc(itemSize);
+      if (xQueueReceive(queueHandle, tempItem, 0) == pdTRUE)
+      {
+        freeFunc(tempItem);
+      };
+      free(tempItem);
+    }
+  }
+  else
+  {
+    M5_LOGW("null queue");
+  }
+}
+
+void freeAllJpegItemFromQueue(QueueHandle_t queueHandle)
+{
+  freeAllItemFromQueue(queueHandle, sizeof(JpegItem), freeJpegItem);
+}
+
+void freeAllProfItemFromQueue(QueueHandle_t queueHandle)
+{
+  freeAllItemFromQueue(queueHandle, sizeof(ProfItem), freeProfItem);
+}
+
+void freeAllEdgeItemFromQueue(QueueHandle_t queueHandle)
+{
+  freeAllItemFromQueue(queueHandle, sizeof(EdgeItem), freeEdgeItem);
 }
 
 void addItemToQueue(QueueHandle_t queueHandle, void *item, size_t itemSize, void (*freeFunc)(void *))
@@ -404,17 +420,13 @@ void stackDepthMaxUpdate(UBaseType_t *stackDepthMax, const char *functionName)
   UBaseType_t stackDepth = uxTaskGetStackHighWaterMark(NULL);
   if (*stackDepthMax < stackDepth)
   {
+    M5_LOGW("%s : stackDepthMax : %u -> %u", functionName, *stackDepthMax, stackDepth);
     *stackDepthMax = stackDepth;
-    M5_LOGW("%s : stackDepthMax = %u", functionName, *stackDepthMax);
   }
 }
 
 void ImageProcessingLoop(void *arg)
 {
-  UBaseType_t stackDepth = uxTaskGetStackHighWaterMark(NULL);
-  UBaseType_t stackDepthMax = 0;
-
-  M5_LOGI("");
   xQueueJpeg_Store = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
   xQueueProf_Store = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
   xQueueEdge_Store = xQueueCreate(MAIN_LOOP_QUEUE_EDGE_SRC_SIZE, sizeof(EdgeItem));
@@ -429,53 +441,71 @@ void ImageProcessingLoop(void *arg)
   {
     stackDepthMaxUpdate(&stackDepthMax_ImageProcessingLoop, pcTaskGetTaskName(NULL));
 
-    while (xQueueJpeg_Src != NULL && xQueueReceive(xQueueJpeg_Src, &item, 0) == pdPASS)
+    if (xQueueJpeg_Src == NULL)
     {
-      // M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
-      int bufIndexMax = 3 * item.width * item.height;
-      uint8_t *bitmap_buf = (uint8_t *)ps_malloc(bufIndexMax);
+      M5_LOGW("null queue handle");
+      delay(storeData.imageBufferingEpochInterval * 1000);
+      continue;
+    }
 
-      fmt2rgb888(item.buf, item.len, item.pixformat, bitmap_buf);
-
-      uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
-      uint16_t *prof_buf_Last = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
-
-      size_t profLen = 0;
-      getImageProfile(bitmap_buf, prof_buf, item, &profLen);
-      free(bitmap_buf);
-
-      int index = profLen;
-      while (index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+    UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Src);
+    while (queueWaitingCount > 0)
+    {
+      if (xQueueReceive(xQueueJpeg_Src, &item, 0) == pdPASS)
       {
-        prof_buf[index] = 0u;
-        index++;
+        // M5_LOGI("srcQueue waiting count : %u", uxQueueMessagesWaiting(xQueueJpeg_Src));
+        int bufIndexMax = 3 * item.width * item.height;
+        uint8_t *bitmap_buf = (uint8_t *)ps_malloc(bufIndexMax);
+
+        fmt2rgb888(item.buf, item.len, item.pixformat, bitmap_buf);
+
+        uint16_t *prof_buf = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+        uint16_t *prof_buf_Last = (uint16_t *)ps_malloc(sizeof(uint16_t) * MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+
+        size_t profLen = 0;
+        getImageProfile(bitmap_buf, prof_buf, item, &profLen);
+        free(bitmap_buf);
+
+        int index = profLen;
+        while (index < MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX)
+        {
+          prof_buf[index] = 0u;
+          index++;
+        }
+
+        memcpy(prof_buf_Last, prof_buf, MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
+
+        ProfItem profileItem = {item.epoc, profLen, prof_buf};
+        ProfItem profileItem_Last = {item.epoc, profLen, prof_buf_Last};
+
+        u_int16_t edgeX = ImageProcessingLoop_EdgePosition(profileItem);
+        u_int16_t edgeX_Last = edgeX;
+
+        EdgeItem edgeItem = {item.epoc, edgeX};
+        EdgeItem edgeItemLast = {item.epoc, edgeX_Last};
+        addEdgeItemToQueue(xQueueEdge_Store, &edgeItem);
+        addEdgeItemToQueue(xQueueEdge_Last, &edgeItemLast);
+
+        addProfItemToQueue(xQueueProf_Store, &profileItem);
+        addProfItemToQueue(xQueueProf_Last, &profileItem_Last);
+
+        //====================
+        uint8_t *frame_Jpeg_Last = (uint8_t *)ps_malloc(item.len);
+        memcpy(frame_Jpeg_Last, item.buf, item.len);
+        JpegItem jpegItem_Last = {item.epoc, frame_Jpeg_Last, item.len, item.pixformat, item.width, item.height};
+
+        addJpegItemToQueue(xQueueJpeg_Store, &item);
+        addJpegItemToQueue(xQueueJpeg_Last, &jpegItem_Last);
+
+        delay(1);
+      }
+      else
+      {
+        M5_LOGW("queue receive fale");
+        delay(100);
       }
 
-      memcpy(prof_buf_Last, prof_buf, MAIN_LOOP_QUEUE_PROFILE_WIDTH_MAX);
-
-      ProfItem profileItem = {item.epoc, profLen, prof_buf};
-      ProfItem profileItem_Last = {item.epoc, profLen, prof_buf_Last};
-
-      u_int16_t edgeX = ImageProcessingLoop_EdgePosition(profileItem);
-      u_int16_t edgeX_Last = edgeX;
-
-      EdgeItem edgeItem = {item.epoc, edgeX};
-      EdgeItem edgeItemLast = {item.epoc, edgeX_Last};
-      addEdgeItemToQueue(xQueueEdge_Store, &edgeItem);
-      addEdgeItemToQueue(xQueueEdge_Last, &edgeItemLast);
-
-      addProfItemToQueue(xQueueProf_Store, &profileItem);
-      addProfItemToQueue(xQueueProf_Last, &profileItem_Last);
-
-      //====================
-      uint8_t *frame_Jpeg_Last = (uint8_t *)ps_malloc(item.len);
-      memcpy(frame_Jpeg_Last, item.buf, item.len);
-      JpegItem jpegItem_Last = {item.epoc, frame_Jpeg_Last, item.len, item.pixformat, item.width, item.height};
-      M5_LOGD("addJpegItemToQueue");
-      addJpegItemToQueue(xQueueJpeg_Store, &item);
-      addJpegItemToQueue(xQueueJpeg_Last, &jpegItem_Last);
-
-      delay(1);
+      queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Src);
     }
 
     delay(1);
@@ -516,8 +546,6 @@ uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem)
 
 void HTTPLoop(void *arg)
 {
-  M5_LOGI("HTTPLoop Start");
-
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_HTTPLoop, pcTaskGetTaskName(NULL));
@@ -535,17 +563,20 @@ bool ftpOpenCheck()
   {
     M5_LOGW("ftp is not Connected.");
 
-    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
-      M5_LOGD("mutex take");
+      mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+      // M5_LOGD("mutex take");
       ftp.OpenConnection();
-      M5_LOGI("ftp.OpenConnection() finished.");
+      // M5_LOGI("ftp.OpenConnection() finished.");
+      mutex_Ethernet_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_Ethernet);
-      M5_LOGI("mutex give");
+      // M5_LOGI("mutex give");
     }
     else
     {
-      M5_LOGW("mutex can not take.");
+      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+
       return false;
     }
   }
@@ -556,17 +587,17 @@ bool ftpCloseCheck()
 {
   if (ftp.isConnected())
   {
-    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
-      M5_LOGD("mutex take");
-
+      mutex_Ethernet_Take_FunctionName = __FUNCTION__;
       ftp.CloseConnection();
+      mutex_Ethernet_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_Ethernet);
-      M5_LOGI("mutex give");
     }
     else
     {
-      M5_LOGW("mutex can not take.");
+      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+
       return false;
     }
   }
@@ -578,8 +609,7 @@ void DataSortLoop_Jpeg(void *arg)
   xQueueJpeg_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
 
-  unsigned long lastCheckEpoc = 0;
-  unsigned long nextSaveEpoc = 0;
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
   unsigned long loopStartMillis = millis();
 
   int queueCheckFrequency = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
@@ -597,14 +627,12 @@ void DataSortLoop_Jpeg(void *arg)
     }
 
     UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Store);
-    M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
     if (queueWaitingCount > queueCheckFrequency)
     {
       JpegItem item;
       u_int16_t saveInterval = storeData.ftpImageSaveInterval;
       directoryPath_Before = "";
 
-      M5_LOGD("mutex take");
       while (xQueueReceive(xQueueJpeg_Store, &item, 0) == pdTRUE)
       {
         if (item.epoc < lastCheckEpoc)
@@ -615,11 +643,9 @@ void DataSortLoop_Jpeg(void *arg)
 
         if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
         {
-          M5_LOGI("Jpeg save : interval = %u", saveInterval);
           nextSaveEpoc = item.epoc + saveInterval;
           sprintf(item.dirPath, "%s", (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, false)).c_str());
           sprintf(item.filePath, "%s", (String(item.dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, false)).c_str());
-          // M5_LOGW("send:| %s |", item.filePath);
           addJpegItemToQueue(xQueueJpeg_Sorted, &item);
         }
         else
@@ -631,13 +657,13 @@ void DataSortLoop_Jpeg(void *arg)
 
     M5_LOGI("loopTime = %u", millis() - loopStartMillis);
 
-    JpegItem jpegItemBuff;
+    /*JpegItem jpegItemBuff;
     while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 0) == pdTRUE)
     {
-      // M5_LOGW("free:| %s |", jpegItemBuff.filePath);
       free(jpegItemBuff.buf);
-      // freeJpegItem(&jpegItemBuff);
-    }
+    }*/
+
+    freeAllJpegItemFromQueue(xQueue_FreeWaiting);
 
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
     M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
@@ -678,21 +704,23 @@ void DataSaveLoop_Jpeg(void *arg)
     if (queueWaitingCount > 0)
     {
       M5_LOGD("ftp mutex take");
-      if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_BLOCK_TIM) != pdTRUE)
+
+      if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_FTP_BLOCK_TIM) != pdTRUE)
       {
-        M5_LOGW("ftp mutex can not take.");
+        M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
         delay(100);
         loopStartMillis = millis();
         continue;
       }
 
+      mutex_FTP_Take_FunctionName = __FUNCTION__;
       ftpOpenCheck();
 
       if (!ftp.isConnected())
       {
         M5_LOGI("ftp mutex give");
+        mutex_FTP_Take_FunctionName = "NAN";
         xSemaphoreGive(mutex_FTP);
-        M5_LOGI();
 
         delay(100);
         loopStartMillis = millis();
@@ -709,9 +737,9 @@ void DataSaveLoop_Jpeg(void *arg)
       M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
       while (queueWaitingCount > 0)
       {
-        M5_LOGI();
-        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
+        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
+          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
           M5_LOGD("mutex take");
           if (xQueueReceive(xQueueJpeg_Sorted, &item, 0) == pdTRUE)
           {
@@ -727,239 +755,38 @@ void DataSaveLoop_Jpeg(void *arg)
           {
             M5_LOGE();
           }
-          M5_LOGI("mutex give");
+
+          mutex_Ethernet_Take_FunctionName = "NAN";
           xSemaphoreGive(mutex_Ethernet);
           delay(1);
-          M5_LOGI();
         }
         else
         {
-          M5_LOGW("mutex can not take.");
+          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
           delay(30);
         };
         M5_LOGI();
         queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
         M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
       }
-      M5_LOGI();
 
       M5_LOGI("loopTime = %u", millis() - loopStartMillis);
+
       M5_LOGI("mutex give");
+      mutex_FTP_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_FTP);
 
       JpegItem jpegItemBuff;
       while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 1) == pdTRUE)
       {
-        // M5_LOGE("free:| %s |", jpegItemBuff.filePath);
-        free(jpegItemBuff.buf);
-        // freeJpegItem(&jpegItemBuff);
+        // free(jpegItemBuff.buf);
+        freeJpegItem(&jpegItemBuff);
       }
     }
 
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
     M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
 
-    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
-
-    loopStartMillis = millis();
-  }
-
-  ftpCloseCheck();
-  M5_LOGE("Loop STOP");
-  vTaskDelete(NULL);
-}
-/*
-
-void DataSaveLoop_Jpeg(void *arg)
-{
-  unsigned long lastCheckEpoc = 0;
-  unsigned long nextSaveEpoc = 0;
-  unsigned long loopStartMillis = millis();
-
-  int queueCheckFrequency = storeData.ftpImageSaveInterval / storeData.imageBufferingEpochInterval;
-
-  String directoryPath_Before = "";
-
-  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
-
-  while (true)
-  {
-    if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_BLOCK_TIM) != pdTRUE)
-    {
-      delay(100);
-      continue;
-    }
-
-    ftpOpenCheck();
-
-    if (ftp.isConnected())
-    {
-      M5_LOGD("ftp is Connected.");
-
-      UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Store);
-      M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-      if (queueWaitingCount > queueCheckFrequency)
-      {
-        if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
-        {
-          JpegItem item;
-          u_int16_t saveInterval = storeData.ftpImageSaveInterval;
-          directoryPath_Before = "";
-
-          M5_LOGD("mutex take");
-          while (xQueueReceive(xQueueJpeg_Store, &item, 0) == pdTRUE)
-          {
-            if (item.epoc < lastCheckEpoc)
-              lastCheckEpoc = 0;
-            if (item.epoc - lastCheckEpoc > 1)
-              M5_LOGW("JpegEpocDeltaOver 1:");
-            lastCheckEpoc = item.epoc;
-
-            if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
-            {
-              M5_LOGI("Jpeg save : interval = %u", saveInterval);
-              nextSaveEpoc = item.epoc + saveInterval;
-              String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, storeData.ftpImageSaveInterval, false);
-              String filePath = directoryPath + "/" + createFilenameFromEpoc(item.epoc, storeData.ftpImageSaveInterval, false);
-
-              if (directoryPath_Before != directoryPath)
-                ftp.MakeDirRecursive(directoryPath);
-              ftp.AppendData(filePath + ".jpg", (u_char *)(item.buf), (int)(item.len));
-              directoryPath_Before = directoryPath;
-
-
-            }
-            addJpegItemToQueue(xQueue_FreeWaiting, &item);
-            // free(item.buf);
-          }
-          xSemaphoreGive(mutex_Ethernet);
-          M5_LOGI("mutex give");
-        }
-        else
-        {
-          M5_LOGW("mutex can not take.");
-
-          loopStartMillis = millis();
-          xSemaphoreGive(mutex_FTP);
-          continue;
-        }
-      }
-    }
-    else
-    {
-      xSemaphoreGive(mutex_FTP);
-      delay(100);
-      loopStartMillis = millis();
-      continue;
-    }
-
-    M5_LOGI("loopTime = %u", millis() - loopStartMillis);
-
-    xSemaphoreGive(mutex_FTP);
-
-    JpegItem jpegItemBuff;
-    while (xQueueReceive(xQueue_FreeWaiting, &jpegItemBuff, 0) == pdTRUE)
-    {
-      free(jpegItemBuff.buf);
-    }
-
-    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
-    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
-
-    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
-
-    loopStartMillis = millis();
-  }
-
-  ftpCloseCheck();
-  M5_LOGE("LoopEnd");
-  vTaskDelete(NULL);
-}
-*/
-
-void DataSaveLoop_Edge(void *arg)
-{
-  unsigned long lastCheckEpoc_Edge = 0;
-  unsigned long nextSaveEpoc_Edge = 0;
-  unsigned long loopStartMillis = millis();
-
-  int queueCheckFrequency = storeData.ftpEdgeSaveInterval / storeData.imageBufferingEpochInterval;
-  queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
-
-  String directoryPath_Before = "";
-
-  while (true)
-  {
-    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, pcTaskGetTaskName(NULL));
-    if (xSemaphoreTake(mutex_FTP, 500) != pdTRUE)
-    {
-      delay(10);
-      continue;
-    }
-
-    ftpOpenCheck();
-
-    if (ftp.isConnected())
-    {
-      M5_LOGD("ftp is Connected.");
-
-      UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Store);
-      M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
-      if (queueWaitingCount > queueCheckFrequency)
-      {
-        if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
-        {
-          EdgeItem edgeItem;
-          u_int16_t saveInterval = storeData.ftpEdgeSaveInterval;
-          directoryPath_Before = "";
-
-          M5_LOGD("mutex take");
-          while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
-          {
-            if (edgeItem.epoc < lastCheckEpoc_Edge)
-              lastCheckEpoc_Edge = 0;
-            if (edgeItem.epoc - lastCheckEpoc_Edge > 1)
-              M5_LOGW("EdgeEpocDeltaOver 1:");
-            lastCheckEpoc_Edge = edgeItem.epoc;
-
-            if (DataSave_Trigger(edgeItem.epoc, saveInterval, nextSaveEpoc_Edge))
-            {
-              M5_LOGI("Edge save : interval = %u", saveInterval);
-              nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
-              String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpEdgeSaveInterval, true);
-              String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpEdgeSaveInterval, true);
-              String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
-
-              if (directoryPath_Before != directoryPath)
-                ftp.MakeDirRecursive(directoryPath);
-              ftp.AppendTextLine(filePath + ".csv", testLine);
-              directoryPath_Before = directoryPath;
-            }
-          }
-          xSemaphoreGive(mutex_Ethernet);
-          M5_LOGI("mutex give");
-        }
-        else
-        {
-          M5_LOGW("mutex can not take.");
-          loopStartMillis = millis();
-          xSemaphoreGive(mutex_FTP);
-          continue;
-        }
-      }
-    }
-    else
-    {
-      xSemaphoreGive(mutex_FTP);
-      delay(100);
-      loopStartMillis = millis();
-      continue;
-    }
-
-    xSemaphoreGive(mutex_FTP);
-    M5_LOGI("loopTime = %u", millis() - loopStartMillis);
-    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
-    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
     delay(loopEndDelay < 0 ? 1 : loopEndDelay);
 
     loopStartMillis = millis();
@@ -974,24 +801,24 @@ void DataSaveLoop_Prof(void *arg)
 {
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
 
-  unsigned long lastCheckEpoc_Prof = 0;
-  unsigned long nextSaveEpoc_Prof = 0;
+  unsigned long lastCheckEpoc_Prof = 0, nextSaveEpoc_Prof = 0;
   unsigned long loopStartMillis = millis();
 
   int queueCheckFrequency = storeData.ftpProfileSaveInterval / storeData.imageBufferingEpochInterval;
-  // queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
   String directoryPath_Before = "";
 
   while (true)
   {
     stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, pcTaskGetTaskName(NULL));
 
-    if (xSemaphoreTake(mutex_FTP, 500) != pdTRUE)
+    if (xSemaphoreTake(mutex_FTP, MUX_FTP_BLOCK_TIM) != pdTRUE)
     {
-      delay(10);
+      M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
+      delay(100);
       continue;
     }
 
+    mutex_FTP_Take_FunctionName = __FUNCTION__;
     ftpOpenCheck();
 
     if (ftp.isConnected())
@@ -1002,8 +829,9 @@ void DataSaveLoop_Prof(void *arg)
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
       if (queueWaitingCount > queueCheckFrequency)
       {
-        if (xSemaphoreTake(mutex_Ethernet, 500) == pdTRUE)
+        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
+          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
           ProfItem profItem;
           u_int16_t saveInterval = storeData.ftpProfileSaveInterval;
           directoryPath_Before = "";
@@ -1034,13 +862,17 @@ void DataSaveLoop_Prof(void *arg)
             addProfItemToQueue(xQueue_FreeWaiting, &profItem);
             // free(profItem.buf);
           }
+          mutex_Ethernet_Take_FunctionName = "NAN";
           xSemaphoreGive(mutex_Ethernet);
           M5_LOGI("mutex give");
         }
         else
         {
+          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+
+          mutex_FTP_Take_FunctionName = "NAN";
           xSemaphoreGive(mutex_FTP);
-          M5_LOGW("mutex can not take.");
+
           loopStartMillis = millis();
           continue;
         }
@@ -1048,12 +880,15 @@ void DataSaveLoop_Prof(void *arg)
     }
     else
     {
+      mutex_FTP_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_FTP);
+
       delay(100);
       loopStartMillis = millis();
       continue;
     }
 
+    mutex_FTP_Take_FunctionName = "NAN";
     xSemaphoreGive(mutex_FTP);
 
     ProfItem profItemBuff;
@@ -1076,192 +911,103 @@ void DataSaveLoop_Prof(void *arg)
   vTaskDelete(NULL);
 }
 
-void DataSaveLoop(void *arg)
+void DataSaveLoop_Edge(void *arg)
 {
-  unsigned long lastCheckEpoc = 0;
   unsigned long lastCheckEpoc_Edge = 0;
-  unsigned long lastCheckEpoc_Prof = 0;
-
-  unsigned long nextSaveEpoc = 0;
   unsigned long nextSaveEpoc_Edge = 0;
-  unsigned long nextSaveEpoc_Prof = 0;
-
   unsigned long loopStartMillis = millis();
+
+  int queueCheckFrequency = storeData.ftpEdgeSaveInterval / storeData.imageBufferingEpochInterval;
+  queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
+
+  String directoryPath_Before = "";
 
   while (true)
   {
-    M5_LOGD("DataSaveLoopStart");
-    loopStartMillis = millis();
-
-    if ((Ethernet.linkStatus() != LinkON))
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, pcTaskGetTaskName(NULL));
+    if (xSemaphoreTake(mutex_FTP, MUX_FTP_BLOCK_TIM) != pdTRUE)
     {
-      M5_LOGW("Ethernet link is not on.");
-      delay(10000);
+      M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
+      delay(100);
       continue;
     }
-
-    if (!ftp.isConnected())
-    {
-      M5_LOGW("ftp is not Connected.");
-
-      // if (xSemaphoreTakeRetry(mutex_Ethernet, 3))
-      if (xSemaphoreTake(mutex_Ethernet, 3000) == pdTRUE)
-      {
-        M5_LOGD("mutex take");
-        ftp.OpenConnection();
-        M5_LOGI("ftp.OpenConnection() finished.");
-        xSemaphoreGive(mutex_Ethernet);
-        M5_LOGI("mutex give");
-      }
-      else
-      {
-        M5_LOGW("mutex can not take.");
-        delay(1000);
-        continue;
-      }
-    }
+    mutex_FTP_Take_FunctionName = __FUNCTION__;
+    ftpOpenCheck();
 
     if (ftp.isConnected())
     {
       M5_LOGD("ftp is Connected.");
 
-      JpegItem item;
-      u_int16_t saveInterval = storeData.ftpImageSaveInterval;
-      M5_LOGI("uxQueueMessagesWaiting(xQueueJpeg_Store) = %u", uxQueueMessagesWaiting(xQueueJpeg_Store));
-      while (xQueueReceive(xQueueJpeg_Store, &item, 0))
+      UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Store);
+      M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
+      if (queueWaitingCount > queueCheckFrequency)
       {
-        if (item.epoc < lastCheckEpoc)
-          lastCheckEpoc = 0;
-        if (item.epoc - lastCheckEpoc > 1)
-          M5_LOGW("JpegEpocDeltaOver 1:");
-        lastCheckEpoc = item.epoc;
-
-        if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
+        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
-          M5_LOGI("Jpeg %u", saveInterval);
-          nextSaveEpoc = item.epoc + saveInterval;
-          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, storeData.ftpImageSaveInterval, false);
-          String filePath = directoryPath + "/" + createFilenameFromEpoc(item.epoc, storeData.ftpImageSaveInterval, false);
+          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+          EdgeItem edgeItem;
+          u_int16_t saveInterval = storeData.ftpEdgeSaveInterval;
+          directoryPath_Before = "";
 
-          // if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
-          if (xSemaphoreTake(mutex_Ethernet, 5000) == pdTRUE)
+          M5_LOGD("mutex take");
+          while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
           {
-            M5_LOGD("mutex take");
-            ftp.MakeDirRecursive(directoryPath);
-            ftp.AppendData(filePath + ".jpg", (u_char *)(item.buf), (int)(item.len));
-            xSemaphoreGive(mutex_Ethernet);
-            M5_LOGI("mutex give");
+            if (edgeItem.epoc < lastCheckEpoc_Edge)
+              lastCheckEpoc_Edge = 0;
+            if (edgeItem.epoc - lastCheckEpoc_Edge > 1)
+              M5_LOGW("EdgeEpocDeltaOver 1:");
+            lastCheckEpoc_Edge = edgeItem.epoc;
+
+            if (DataSave_Trigger(edgeItem.epoc, saveInterval, nextSaveEpoc_Edge))
+            {
+              M5_LOGI("Edge save : interval = %u", saveInterval);
+              nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
+              String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpEdgeSaveInterval, true);
+              String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpEdgeSaveInterval, true);
+              String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
+
+              if (directoryPath_Before != directoryPath)
+                ftp.MakeDirRecursive(directoryPath);
+              ftp.AppendTextLine(filePath + ".csv", testLine);
+              directoryPath_Before = directoryPath;
+            }
           }
-          else
-          {
-            M5_LOGW("mutex can not take.");
-          }
+          mutex_Ethernet_Take_FunctionName = "NAN";
+          xSemaphoreGive(mutex_Ethernet);
+          M5_LOGI("mutex give");
         }
-        free(item.buf);
-        delay(1); // wdt notice
-      }
-
-      EdgeItem edgeItem;
-      saveInterval = storeData.ftpEdgeSaveInterval;
-      M5_LOGI("uxQueueMessagesWaiting(xQueueEdge_Store) = %u", uxQueueMessagesWaiting(xQueueEdge_Store));
-      while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
-      {
-        lastCheckEpoc_Edge = edgeItem.epoc;
-        if (DataSave_Trigger(edgeItem.epoc, saveInterval, nextSaveEpoc_Edge))
+        else
         {
-          M5_LOGI("edge %u", saveInterval);
-          nextSaveEpoc_Edge = edgeItem.epoc + saveInterval;
-          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
-          String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpImageSaveInterval, true);
-          String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
+          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
 
-          // if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
-          if (xSemaphoreTake(mutex_Ethernet, 5000) == pdTRUE)
-          {
-            M5_LOGD("mutex take");
+          loopStartMillis = millis();
 
-            ftp.MakeDirRecursive(directoryPath);
-            ftp.AppendTextLine(filePath + ".csv", testLine);
-            xSemaphoreGive(mutex_Ethernet);
-            M5_LOGI("mutex give");
-          }
-          else
-          {
-            M5_LOGW("mutex can not take.");
-          }
+          mutex_FTP_Take_FunctionName = "NAN";
+          xSemaphoreGive(mutex_FTP);
+          continue;
         }
       }
-
-      ProfItem profItem;
-      saveInterval = storeData.ftpProfileSaveInterval;
-      M5_LOGI("uxQueueMessagesWaiting(xQueueProf_Store) = %u", uxQueueMessagesWaiting(xQueueProf_Store));
-      while (xQueueReceive(xQueueProf_Store, &profItem, 0))
-      {
-        lastCheckEpoc_Prof = profItem.epoc;
-        if (DataSave_Trigger(profItem.epoc, saveInterval, nextSaveEpoc_Prof))
-        {
-          M5_LOGI("prof %u", saveInterval);
-          nextSaveEpoc_Prof = profItem.epoc + saveInterval;
-          String directoryPath = String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
-          String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpImageSaveInterval, true);
-          String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
-
-          // if (xSemaphoreTakeRetry(mutex_Ethernet, 5))
-          if (xSemaphoreTake(mutex_Ethernet, 5000) == pdTRUE)
-          {
-            M5_LOGD("mutex take");
-
-            ftp.MakeDirRecursive(directoryPath);
-            ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
-            xSemaphoreGive(mutex_Ethernet);
-            M5_LOGI("mutex give");
-          }
-          else
-          {
-            M5_LOGW("mutex can not take.");
-          }
-        }
-        free(profItem.buf);
-      }
-    }
-
-    if (xSemaphoreTake(mutex_Ethernet, 0) == pdTRUE)
-    {
-      M5_LOGD("mutex take");
-
-      M5_LOGD("Ethernet.maintain();");
-      Ethernet.maintain();
-      xSemaphoreGive(mutex_Ethernet);
-      M5_LOGI("mutex give");
     }
     else
     {
-      M5_LOGW("mutex can not take.");
+      mutex_FTP_Take_FunctionName = "NAN";
+      xSemaphoreGive(mutex_FTP);
+      delay(100);
+      loopStartMillis = millis();
+      continue;
     }
-
+    mutex_FTP_Take_FunctionName = "NAN";
+    xSemaphoreGive(mutex_FTP);
     M5_LOGI("loopTime = %u", millis() - loopStartMillis);
-
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
     M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
     delay(loopEndDelay < 0 ? 1 : loopEndDelay);
+
+    loopStartMillis = millis();
   }
 
-  if (ftp.isConnected())
-  {
-    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_BLOCK_TIM) == pdTRUE)
-    {
-      M5_LOGD("mutex take");
-
-      ftp.CloseConnection();
-      xSemaphoreGive(mutex_Ethernet);
-      M5_LOGI("mutex give");
-    }
-    else
-    {
-      M5_LOGW("mutex can not take.");
-    }
-  }
-  M5_LOGE("LoopEnd");
+  ftpCloseCheck();
+  M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
 }
 

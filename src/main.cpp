@@ -28,8 +28,12 @@
 
 // portMUX_TYPE mutex_Ethernet = portMUX_INITIALIZER_UNLOCKED;
 SemaphoreHandle_t mutex_Ethernet;
-SemaphoreHandle_t mutex_FTP;
+String mutex_Ethernet_Take_FunctionName;
 
+SemaphoreHandle_t mutex_FTP;
+String mutex_FTP_Take_FunctionName;
+
+/*
 bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec)
 {
   int retryCount = retrySec * 10;
@@ -43,7 +47,7 @@ bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec)
 
   return retryCount > 0;
 }
-
+*/
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 EthernetClient FtpClient(21);

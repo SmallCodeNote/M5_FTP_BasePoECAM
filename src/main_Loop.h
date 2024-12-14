@@ -25,16 +25,13 @@ void HTTPLoop(void *arg);
 
 void DataSortLoop_Jpeg(void *arg);
 void DataSaveLoop_Jpeg(void *arg);
-void DataSaveLoop_Edge(void *arg);
+
+void DataSortLoop_Prof(void *arg);
 void DataSaveLoop_Prof(void *arg);
 
+void DataSortLoop_Edge(void *arg);
+void DataSaveLoop_Edge(void *arg);
 
-
-
-
-//void DataSaveLoop(void *arg);
-//bool SensorShotTaskRunTrigger(unsigned long currentEpoch);
-//unsigned long SensorShotStartOffset();
 uint16_t ImageProcessingLoop_EdgePosition(ProfItem profItem);
 
 void stackDepthMaxUpdate(UBaseType_t *stackDepthMax, const char *functionName);
