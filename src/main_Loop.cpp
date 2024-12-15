@@ -56,17 +56,17 @@ void TimeServerAccessLoop(void *arg)
 
     if (NtpClient.currentEpoch == 0 && count >= 3 || count >= 60)
     {
-      if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+      // if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
       {
-        mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+        // mutex_Ethernet_Take_FunctionName = __FUNCTION__;
         NtpClient.updateTimeFromServer(ntpSrvIP_String, +9);
-        mutex_Ethernet_Take_FunctionName = "NAN";
-        xSemaphoreGive(mutex_Ethernet);
+        // mutex_Ethernet_Take_FunctionName = "NAN";
+        // xSemaphoreGive(mutex_EthernetSocketOpen);
       }
-      else
+      /*else
       {
         M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
-      }
+      }*/
       count = 0;
     }
     else
@@ -554,12 +554,12 @@ bool ftpOpenCheck()
   {
     M5_LOGW("ftp is not Connected.");
 
-    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
       mutex_Ethernet_Take_FunctionName = __FUNCTION__;
       ftp.OpenConnection();
       mutex_Ethernet_Take_FunctionName = "NAN";
-      xSemaphoreGive(mutex_Ethernet);
+      xSemaphoreGive(mutex_EthernetSocketOpen);
     }
     else
     {
@@ -575,12 +575,12 @@ bool ftpCloseCheck()
 {
   if (ftp.isConnected())
   {
-    if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
       mutex_Ethernet_Take_FunctionName = __FUNCTION__;
       ftp.CloseConnection();
       mutex_Ethernet_Take_FunctionName = "NAN";
-      xSemaphoreGive(mutex_Ethernet);
+      xSemaphoreGive(mutex_EthernetSocketOpen);
     }
     else
     {
@@ -725,10 +725,10 @@ void DataSaveLoop_Jpeg(void *arg)
       M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
       while (queueWaitingCount > 0)
       {
-        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+        // if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
-          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
-          M5_LOGD("mutex take");
+          // mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+          // M5_LOGD("mutex take");
           if (xQueueReceive(xQueueJpeg_Sorted, &item, 0) == pdTRUE)
           {
             // M5_LOGD("CreateDirectory: %s", item.dirPath);
@@ -744,16 +744,16 @@ void DataSaveLoop_Jpeg(void *arg)
             M5_LOGE();
           }
 
-          mutex_Ethernet_Take_FunctionName = "NAN";
-          xSemaphoreGive(mutex_Ethernet);
+          // mutex_Ethernet_Take_FunctionName = "NAN";
+          // xSemaphoreGive(mutex_EthernetSocketOpen);
           delay(1);
-        }
-        else
-        {
-          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+        } /*
+         else
+         {
+           M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
 
-          delay(30);
-        };
+           delay(30);
+         };*/
         M5_LOGI();
         queueWaitingCount = uxQueueMessagesWaiting(xQueueJpeg_Sorted);
         M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
@@ -818,9 +818,9 @@ void DataSaveLoop_Prof(void *arg)
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
       if (queueWaitingCount > queueCheckFrequency)
       {
-        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+        // if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
-          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+          // mutex_Ethernet_Take_FunctionName = __FUNCTION__;
           ProfItem profItem;
           u_int16_t saveInterval = storeData.ftpProfileSaveInterval;
           directoryPath_Before = "";
@@ -843,6 +843,7 @@ void DataSaveLoop_Prof(void *arg)
               String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
 
               if (directoryPath_Before != directoryPath)
+              //if (!ftp.DirExists(directoryPath))
                 ftp.MakeDirRecursive(directoryPath);
               ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
               directoryPath_Before = directoryPath;
@@ -851,26 +852,27 @@ void DataSaveLoop_Prof(void *arg)
             addProfItemToQueue(xQueue_FreeWaiting, &profItem);
             // free(profItem.buf);
           }
-          mutex_Ethernet_Take_FunctionName = "NAN";
-          xSemaphoreGive(mutex_Ethernet);
-          M5_LOGI("mutex give");
-        }
-        else
-        {
-          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+          // mutex_Ethernet_Take_FunctionName = "NAN";
+          // xSemaphoreGive(mutex_EthernetSocketOpen);
+          // M5_LOGI("mutex give");
+        } /*
+         else
+         {
+           M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
 
-          mutex_FTP_Take_FunctionName = "NAN";
-          xSemaphoreGive(mutex_FTP);
+           mutex_FTP_Take_FunctionName = "NAN";
+           xSemaphoreGive(mutex_FTP);
 
-          loopStartMillis = millis();
-          continue;
-        }
+           loopStartMillis = millis();
+           continue;
+         }*/
       }
     }
     else
     {
       mutex_FTP_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_FTP);
+      M5_LOGI("mutex give");
 
       delay(100);
       loopStartMillis = millis();
@@ -879,6 +881,7 @@ void DataSaveLoop_Prof(void *arg)
 
     mutex_FTP_Take_FunctionName = "NAN";
     xSemaphoreGive(mutex_FTP);
+    M5_LOGI("mutex give");
 
     ProfItem profItemBuff;
     while (xQueueReceive(xQueue_FreeWaiting, &profItemBuff, 0) == pdTRUE)
@@ -920,8 +923,10 @@ void DataSaveLoop_Edge(void *arg)
       delay(100);
       continue;
     }
+
     mutex_FTP_Take_FunctionName = __FUNCTION__;
     ftpOpenCheck();
+    M5_LOGD("mutex take");
 
     if (ftp.isConnected())
     {
@@ -931,14 +936,13 @@ void DataSaveLoop_Edge(void *arg)
       M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
       if (queueWaitingCount > queueCheckFrequency)
       {
-        if (xSemaphoreTake(mutex_Ethernet, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+        // if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
         {
-          mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+          // mutex_Ethernet_Take_FunctionName = __FUNCTION__;
           EdgeItem edgeItem;
           u_int16_t saveInterval = storeData.ftpEdgeSaveInterval;
           directoryPath_Before = "";
 
-          M5_LOGD("mutex take");
           while (xQueueReceive(xQueueEdge_Store, &edgeItem, 0))
           {
             if (edgeItem.epoc < lastCheckEpoc_Edge)
@@ -956,37 +960,42 @@ void DataSaveLoop_Edge(void *arg)
               String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
 
               if (directoryPath_Before != directoryPath)
+              //if (!ftp.DirExists(directoryPath))
                 ftp.MakeDirRecursive(directoryPath);
               ftp.AppendTextLine(filePath + ".csv", testLine);
               directoryPath_Before = directoryPath;
             }
           }
-          mutex_Ethernet_Take_FunctionName = "NAN";
-          xSemaphoreGive(mutex_Ethernet);
-          M5_LOGI("mutex give");
-        }
-        else
-        {
-          M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+          // mutex_Ethernet_Take_FunctionName = "NAN";
+          // xSemaphoreGive(mutex_EthernetSocketOpen);
+          // M5_LOGI("mutex give");
+        } /*
+         else
+         {
+           M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
 
-          loopStartMillis = millis();
+           loopStartMillis = millis();
 
-          mutex_FTP_Take_FunctionName = "NAN";
-          xSemaphoreGive(mutex_FTP);
-          continue;
-        }
+           mutex_FTP_Take_FunctionName = "NAN";
+           xSemaphoreGive(mutex_FTP);
+           continue;
+         }*/
       }
     }
     else
     {
       mutex_FTP_Take_FunctionName = "NAN";
       xSemaphoreGive(mutex_FTP);
+      M5_LOGI("mutex give");
       delay(100);
       loopStartMillis = millis();
       continue;
     }
+
     mutex_FTP_Take_FunctionName = "NAN";
     xSemaphoreGive(mutex_FTP);
+    M5_LOGI("mutex give");
+
     M5_LOGI("loopTime = %u", millis() - loopStartMillis);
     int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
     M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);

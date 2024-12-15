@@ -130,6 +130,7 @@ public:
     uint16_t Write(const char *str);
     uint16_t ChangeWorkDir(String dir);
     uint16_t DeleteFile(String file);
+    bool DirExists(String dir);
     uint16_t MakeDir(String dir);
     uint16_t MakeDirRecursive(String dir);
     uint16_t RemoveDir(String dir);

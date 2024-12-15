@@ -26,8 +26,8 @@
 #define MOSI 13
 #define CS 4
 
-// portMUX_TYPE mutex_Ethernet = portMUX_INITIALIZER_UNLOCKED;
-SemaphoreHandle_t mutex_Ethernet;
+// portMUX_TYPE mutex_EthernetSocketOpen = portMUX_INITIALIZER_UNLOCKED;
+SemaphoreHandle_t mutex_EthernetSocketOpen;
 String mutex_Ethernet_Take_FunctionName;
 
 SemaphoreHandle_t mutex_FTP;
@@ -226,9 +226,9 @@ bool EthernetBegin()
   // CONFIG_IDF_TARGET_ESP32;
 
   M5_LOGI("MAX_SOCK_NUM = %s", String(MAX_SOCK_NUM));
-  if (MAX_SOCK_NUM < 8)
+  if (MAX_SOCK_NUM < 4)
   {
-    M5_LOGE("need overwrite MAX_SOCK_NUM = 8 in M5_Ethernet.h");
+    M5_LOGE("need overwrite MAX_SOCK_NUM = 4 in M5_Ethernet.h");
     UnitEnable = false;
     return false;
   }
@@ -261,9 +261,9 @@ void unit_flash_init(void)
 void setup()
 {
 
-  if (mutex_Ethernet == NULL)
+  if (mutex_EthernetSocketOpen == NULL)
   {
-    mutex_Ethernet = xSemaphoreCreateMutex();
+    mutex_EthernetSocketOpen = xSemaphoreCreateMutex();
   }
   if (mutex_FTP == NULL)
   {
@@ -302,10 +302,8 @@ void setup()
 
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
-  xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 8192, NULL, 2, NULL, 0);
-  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 1, NULL, 0);
-
-  //xTaskCreatePinnedToCore(DataSaveLoop, "DataSaveLoop", 4096, NULL, 3, NULL, 0);
+  xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 2, NULL, 0);
+  xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 8192, NULL, 1, NULL, 0);
 
   xTaskCreatePinnedToCore(DataSortLoop_Jpeg, "DataSortLoop_Jpeg", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Jpeg, "DataSaveLoop_Jpeg", 4096, NULL, 1, NULL, 0);

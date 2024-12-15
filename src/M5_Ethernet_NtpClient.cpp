@@ -214,6 +214,7 @@ String M5_Ethernet_NtpClient::readMonth(unsigned long Epoch)
     }
     return String("Month not available");
 }
+
 String M5_Ethernet_NtpClient::readDay()
 {
     return readDay(currentEpoch);

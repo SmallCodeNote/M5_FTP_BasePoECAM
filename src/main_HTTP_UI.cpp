@@ -84,6 +84,7 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
     for (size_t i = 1; i < profItem.len; i++)
     {
       httpClient.printf(",%u", profItem.buf[i]);
+      delay(1);
     }
 
     httpClient.println("]");
@@ -174,6 +175,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
       }
       out_buf += now_sends;
       to_sends -= now_sends;
+      delay(5);
     }
     free(jpegItem.buf);
     M5_LOGI("");
@@ -1508,12 +1510,19 @@ void sendPage(EthernetClient httpClient, String page)
 
 void HTTP_UI()
 {
+  if (xSemaphoreTake(mutex_EthernetSocketOpen, portMAX_DELAY) != pdTRUE)
+    return;
+
   EthernetClient httpClient = HttpUIServer.available();
+
+  xSemaphoreGive(mutex_EthernetSocketOpen);
+  // M5_LOGI("mutex give");
+
   if (httpClient)
   {
-    if (xSemaphoreTake(mutex_Ethernet, portMAX_DELAY) == pdTRUE)
+    // if (xSemaphoreTake(mutex_EthernetSocketOpen, portMAX_DELAY) == pdTRUE)
     {
-      M5_LOGD("mutex take success");
+      // M5_LOGD("mutex take success");
 
       unsigned long millis0 = millis();
       unsigned long millis1 = millis0;
@@ -1541,6 +1550,7 @@ void HTTP_UI()
 
       while (httpClient.connected())
       {
+
         loopCount++;
         if (httpClient.available())
         {
@@ -1617,12 +1627,12 @@ void HTTP_UI()
       M5_LOGI("httpClient disconnected : httpClient alived time =  %u ms", millis() - clientStart);
       M5_LOGI("loopCount =  %u ,charCount = %u", loopCount, charCount);
 
-      xSemaphoreGive(mutex_Ethernet);
-      M5_LOGI("mutex give");
+      // xSemaphoreGive(mutex_EthernetSocketOpen);
+      // M5_LOGI("mutex give");
     }
-    else
+    /*else
     {
       M5_LOGW("mutex can not take");
-    }
+    }*/
   }
 }

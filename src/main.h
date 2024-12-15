@@ -67,7 +67,7 @@ extern QueueHandle_t xQueueJpeg_Last;
 extern QueueHandle_t xQueueEdge_Last;
 extern QueueHandle_t xQueueProf_Last;
 
-extern SemaphoreHandle_t mutex_Ethernet;
+extern SemaphoreHandle_t mutex_EthernetSocketOpen;
 extern SemaphoreHandle_t mutex_FTP;
 
 extern String mutex_Ethernet_Take_FunctionName;

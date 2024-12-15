@@ -543,6 +543,28 @@ uint16_t M5_Ethernet_FtpClient::ChangeWorkDir(String dir)
 
 /////////////////////////////////////////////
 
+bool M5_Ethernet_FtpClient::DirExists(String dir)
+{
+  if (!isConnected())
+  {
+    FTP_LOGERROR("DirExists: Not connected error");
+    return false;
+  }
+
+  FTP_LOGINFO("Send CWD");
+  ftpClient.print(FTP_COMMAND_CURRENT_WORKING_DIR);
+  ftpClient.println(dir);
+
+  uint16_t asw = GetCmdAnswer();
+
+  ftpClient.print(FTP_COMMAND_CURRENT_WORKING_DIR);
+  ftpClient.println("/");
+  GetCmdAnswer();
+
+  M5_LOGD("DirExists Answer = %u", asw);
+  return asw == 250;
+}
+
 uint16_t M5_Ethernet_FtpClient::MakeDir(String dir)
 {
   if (!isConnected())
