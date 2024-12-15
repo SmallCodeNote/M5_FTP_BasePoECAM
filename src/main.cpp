@@ -303,6 +303,7 @@ void setup()
 
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
   xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 2, NULL, 0);
+  
   xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 8192, NULL, 1, NULL, 0);
 
   xTaskCreatePinnedToCore(DataSortLoop_Jpeg, "DataSortLoop_Jpeg", 4096, NULL, 1, NULL, 0);
