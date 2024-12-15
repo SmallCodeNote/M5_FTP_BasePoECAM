@@ -1334,7 +1334,19 @@ void sendPage(EthernetClient httpClient, String page)
   {
     if (page == pageHandlers[i].page)
     {
-      pageHandlers[i].handler(httpClient);
+      M5_LOGD("Eth mutex take");
+      mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+      {
+        pageHandlers[i].handler(httpClient);
+        xSemaphoreGive(mutex_Eth);
+        M5_LOGI("Eth mutex give");
+        mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      }
+      else
+      {
+        M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+      }
       return;
     }
   }
@@ -1343,17 +1355,17 @@ void sendPage(EthernetClient httpClient, String page)
 
 void HTTP_UI()
 {
-  if (xSemaphoreTake(mutex_EthernetSocketOpen, portMAX_DELAY) != pdTRUE)
+  if (xSemaphoreTake(mutex_Eth_SocketOpen, portMAX_DELAY) != pdTRUE)
+  {
     return;
-
+  }
   EthernetClient httpClient = HttpUIServer.available();
-
-  xSemaphoreGive(mutex_EthernetSocketOpen);
+  xSemaphoreGive(mutex_Eth_SocketOpen);
   // M5_LOGI("mutex give");
 
   if (httpClient)
   {
-    // if (xSemaphoreTake(mutex_EthernetSocketOpen, portMAX_DELAY) == pdTRUE)
+    // if (xSemaphoreTake(mutex_Eth_SocketOpen, portMAX_DELAY) == pdTRUE)
     {
       // M5_LOGD("mutex take success");
 
@@ -1459,13 +1471,6 @@ void HTTP_UI()
 
       M5_LOGI("httpClient disconnected : httpClient alived time =  %u ms", millis() - clientStart);
       M5_LOGI("loopCount =  %u ,charCount = %u", loopCount, charCount);
-
-      // xSemaphoreGive(mutex_EthernetSocketOpen);
-      // M5_LOGI("mutex give");
     }
-    /*else
-    {
-      M5_LOGW("mutex can not take");
-    }*/
   }
 }

@@ -544,16 +544,16 @@ bool ftpOpenCheck()
   {
     M5_LOGW("ftp is not Connected.");
 
-    if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_Eth_SocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
-      mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+      mutex_Eth_SocketOpen_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
       ftp.OpenConnection();
-      mutex_Ethernet_Take_FunctionName = "NAN";
-      xSemaphoreGive(mutex_EthernetSocketOpen);
+      mutex_Eth_SocketOpen_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      xSemaphoreGive(mutex_Eth_SocketOpen);
     }
     else
     {
-      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_SocketOpen_Take_FunctionName.c_str());
 
       return false;
     }
@@ -565,16 +565,16 @@ bool ftpCloseCheck()
 {
   if (ftp.isConnected())
   {
-    if (xSemaphoreTake(mutex_EthernetSocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+    if (xSemaphoreTake(mutex_Eth_SocketOpen, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
     {
-      mutex_Ethernet_Take_FunctionName = __FUNCTION__;
+      mutex_Eth_SocketOpen_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
       ftp.CloseConnection();
-      mutex_Ethernet_Take_FunctionName = "NAN";
-      xSemaphoreGive(mutex_EthernetSocketOpen);
+      mutex_Eth_SocketOpen_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      xSemaphoreGive(mutex_Eth_SocketOpen);
     }
     else
     {
-      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Ethernet_Take_FunctionName.c_str());
+      M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_SocketOpen_Take_FunctionName.c_str());
 
       return false;
     }
@@ -688,6 +688,7 @@ void DataSaveLoop_Jpeg(void *arg)
       if (!ftp.isConnected())
       {
         delay(100);
+
         xSemaphoreGive(mutex_FTP);
         M5_LOGI("ftp mutex give");
         mutex_FTP_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
@@ -710,14 +711,26 @@ void DataSaveLoop_Jpeg(void *arg)
       {
         if (xQueueReceive(xQueueJpeg_Sorted, &item, 0) == pdTRUE)
         {
-          // M5_LOGD("CreateDirectory: %s", item.dirPath);
-          if (directoryPath_Before != item.dirPath)
-            ftp.MakeDirRecursive(item.dirPath);
-          // M5_LOGD("CreateFilepath: %s", item.filePath);
-          ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
-          M5_LOGV("\n    FTP: %s", item.filePath);
+          M5_LOGD("Eth mutex take");
+          mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+          if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+          {
+            if (directoryPath_Before != item.dirPath)
+              ftp.MakeDirRecursive(item.dirPath);
+            ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
 
-          directoryPath_Before = item.dirPath;
+            xSemaphoreGive(mutex_Eth);
+            M5_LOGI("Eth mutex give");
+            mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+            M5_LOGV("\n    FTP: %s", item.filePath);
+            directoryPath_Before = item.dirPath;
+          }
+          else
+          {
+            M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+          }
+
           addJpegItemToQueue(xQueue_FreeWaiting, &item);
         }
         else
@@ -752,6 +765,17 @@ void DataSaveLoop_Jpeg(void *arg)
   ftpCloseCheck();
   M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
+}
+
+String ProfDataStringCreate(u_int16_t *buf, int32_t len)
+{
+  String dataLine = String(buf[0]);
+  dataLine.reserve(len * 6);
+  for (int32_t i = 1; i < len; i++)
+  {
+    dataLine += ("," + String(buf[i]));
+  }
+  return dataLine;
 }
 
 void DataSaveLoop_Prof(void *arg)
@@ -808,12 +832,30 @@ void DataSaveLoop_Prof(void *arg)
             String filePath = directoryPath + "/prof_" + createFilenameFromEpoc(profItem.epoc, storeData.ftpProfileSaveInterval, true);
             String headLine = NtpClient.convertTimeEpochToString(profItem.epoc);
 
-            if (directoryPath_Before != directoryPath)
-              ftp.MakeDirRecursive(directoryPath);
-            ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
-            M5_LOGV("\n    FTP: %s", filePath.c_str());
+            String dataLine = ProfDataStringCreate(profItem.buf, profItem.len);
 
-            directoryPath_Before = directoryPath;
+            M5_LOGD("Eth mutex take");
+            mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+            if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+            {
+              if (directoryPath_Before != directoryPath)
+                ftp.MakeDirRecursive(directoryPath);
+              unsigned long intstartmillis = millis();
+              //ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
+              ftp.AppendTextLine(filePath + ".csv", headLine + "," + dataLine);
+              M5_LOGD("prof out : %u", millis() - intstartmillis);
+
+              xSemaphoreGive(mutex_Eth);
+              M5_LOGI("Eth mutex give");
+              mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+              M5_LOGV("\n    FTP: %s", filePath.c_str());
+              directoryPath_Before = directoryPath;
+            }
+            else
+            {
+              M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+            }
           }
 
           addProfItemToQueue(xQueue_FreeWaiting, &profItem);
@@ -905,12 +947,26 @@ void DataSaveLoop_Edge(void *arg)
             String filePath = directoryPath + "/edge_" + createFilenameFromEpoc(edgeItem.epoc, storeData.ftpEdgeSaveInterval, true);
             String testLine = NtpClient.convertTimeEpochToString(edgeItem.epoc) + "," + String(edgeItem.edgeX);
 
-            if (directoryPath_Before != directoryPath)
-              // if (!ftp.DirExists(directoryPath))
-              ftp.MakeDirRecursive(directoryPath);
-            ftp.AppendTextLine(filePath + ".csv", testLine);
-            M5_LOGV("\n    FTP: %s", filePath.c_str());
-            directoryPath_Before = directoryPath;
+            M5_LOGD("Eth mutex take");
+            mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+            if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+            {
+              if (directoryPath_Before != directoryPath)
+                // if (!ftp.DirExists(directoryPath))
+                ftp.MakeDirRecursive(directoryPath);
+              ftp.AppendTextLine(filePath + ".csv", testLine);
+
+              xSemaphoreGive(mutex_Eth);
+              M5_LOGI("Eth mutex give");
+              mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+              M5_LOGV("\n    FTP: %s", filePath.c_str());
+              directoryPath_Before = directoryPath;
+            }
+            else
+            {
+              M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+            }
           }
         }
       }

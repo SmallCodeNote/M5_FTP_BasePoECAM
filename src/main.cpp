@@ -26,28 +26,15 @@
 #define MOSI 13
 #define CS 4
 
-// portMUX_TYPE mutex_EthernetSocketOpen = portMUX_INITIALIZER_UNLOCKED;
-SemaphoreHandle_t mutex_EthernetSocketOpen;
-String mutex_Ethernet_Take_FunctionName;
-
+// portMUX_TYPE mutex_Eth_SocketOpen = portMUX_INITIALIZER_UNLOCKED;
+SemaphoreHandle_t mutex_Eth_SocketOpen;
+SemaphoreHandle_t mutex_Eth;
 SemaphoreHandle_t mutex_FTP;
+
+String mutex_Eth_SocketOpen_Take_FunctionName;
+String mutex_Eth_Take_FunctionName;
 String mutex_FTP_Take_FunctionName;
 
-/*
-bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec)
-{
-  int retryCount = retrySec * 10;
-  while (retryCount)
-  {
-    if (xSemaphoreTake(mutex, 0) == pdTRUE)
-      break;
-    retryCount--;
-    delay(100);
-  }
-
-  return retryCount > 0;
-}
-*/
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 EthernetClient FtpClient(21);
@@ -55,10 +42,6 @@ M5_Ethernet_FtpClient ftp(ftpSrvIP_String, ftp_user, ftp_pass, 60000);
 M5_Ethernet_NtpClient NtpClient;
 
 bool UnitEnable = true;
-
-
-
-
 
 String getInterfaceMacAddress(esp_mac_type_t interface)
 {
@@ -261,9 +244,13 @@ void unit_flash_init(void)
 void setup()
 {
 
-  if (mutex_EthernetSocketOpen == NULL)
+  if (mutex_Eth_SocketOpen == NULL)
   {
-    mutex_EthernetSocketOpen = xSemaphoreCreateMutex();
+    mutex_Eth_SocketOpen = xSemaphoreCreateMutex();
+  }
+  if (mutex_Eth == NULL)
+  {
+    mutex_Eth = xSemaphoreCreateMutex();
   }
   if (mutex_FTP == NULL)
   {
@@ -300,17 +287,15 @@ void setup()
 
   unit_flash_init();
 
-
   xTaskCreatePinnedToCore(TimeUpdateLoop, "TimeUpdateLoop", 4096, NULL, 3, NULL, 0);
   xTaskCreatePinnedToCore(ImageProcessingLoop, "ImageProcessingLoop", 4096, NULL, 2, NULL, 0);
-  
+
   xTaskCreatePinnedToCore(HTTPLoop, "HTTPLoop", 8192, NULL, 1, NULL, 0);
 
   xTaskCreatePinnedToCore(DataSortLoop_Jpeg, "DataSortLoop_Jpeg", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Jpeg, "DataSaveLoop_Jpeg", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Edge, "DataSaveLoop_Edge", 4096, NULL, 1, NULL, 0);
   xTaskCreatePinnedToCore(DataSaveLoop_Prof, "DataSaveLoop_Prof", 4096, NULL, 1, NULL, 0);
-
 
   xTaskCreatePinnedToCore(ImageStoreLoop, "ImageStoreLoop", 4096, NULL, 1, NULL, 1);
   xTaskCreatePinnedToCore(TimeServerAccessLoop, "TimeServerAccessLoop", 4096, NULL, 0, NULL, 1);

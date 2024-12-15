@@ -14,7 +14,7 @@ String ftpProfileSaveInterval = "0";
 String imageBufferingEpochInterval = "1";
 
 String chartShowPointCount = "60";
-String chartUpdateInterval = "1000";
+String chartUpdateInterval = "3000";
 
 String timeZoneOffset = "9";
 
@@ -82,7 +82,7 @@ void InitEEPROM()
     String imageBufferingEpochInterval = "1"; //[sec.]
 
     String chartShowPointCount = "60";   // Number of points to show on the chart [0 - 65535]
-    String chartUpdateInterval = "1000"; //[ms]
+    String chartUpdateInterval = "3000"; //[ms]
 
     String timeZoneOffset = "9"; // Time zone offset in hours [-12 - 14]
 
