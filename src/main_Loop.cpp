@@ -8,6 +8,7 @@
 #include "main_Loop.h"
 
 #include <cmath>
+#include <vector>
 
 UBaseType_t stackDepthMax_TimeUpdateLoop;
 UBaseType_t stackDepthMax_TimeServerAccessLoop;
@@ -17,8 +18,10 @@ UBaseType_t stackDepthMax_ImageStoreLoop;
 UBaseType_t stackDepthMax_ImageProcessingLoop;
 UBaseType_t stackDepthMax_DataSortLoop_Jpeg;
 UBaseType_t stackDepthMax_DataSaveLoop_Jpeg;
-UBaseType_t stackDepthMax_DataSaveLoop_Edge;
+UBaseType_t stackDepthMax_DataSortLoop_Prof;
 UBaseType_t stackDepthMax_DataSaveLoop_Prof;
+UBaseType_t stackDepthMax_DataSortLoop_Edge;
+UBaseType_t stackDepthMax_DataSaveLoop_Edge;
 
 QueueHandle_t xQueueJpeg_Src;
 
@@ -31,6 +34,7 @@ QueueHandle_t xQueueProf_Sorted;
 QueueHandle_t xQueueProf_Last;
 
 QueueHandle_t xQueueEdge_Store;
+QueueHandle_t xQueueEdge_Sorted;
 QueueHandle_t xQueueEdge_Last;
 
 void TimeUpdateLoop(void *arg)
@@ -650,8 +654,7 @@ void DataSortLoop_Jpeg(void *arg)
 void DataSaveLoop_Jpeg(void *arg)
 {
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
-  unsigned long lastCheckEpoc = 0;
-  unsigned long nextSaveEpoc = 0;
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
   unsigned long loopStartMillis = millis();
   String directoryPath_Before = "";
 
@@ -841,7 +844,7 @@ void DataSaveLoop_Prof(void *arg)
               if (directoryPath_Before != directoryPath)
                 ftp.MakeDirRecursive(directoryPath);
               unsigned long intstartmillis = millis();
-              //ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
+              // ftp.AppendDataArrayAsTextLine(filePath + ".csv", headLine, profItem.buf, profItem.len);
               ftp.AppendTextLine(filePath + ".csv", headLine + "," + dataLine);
               M5_LOGD("prof out : %u", millis() - intstartmillis);
 
@@ -894,6 +897,197 @@ void DataSaveLoop_Prof(void *arg)
   vTaskDelete(NULL);
 }
 
+void DataSortLoop_Edge(void *arg)
+{
+  xQueueEdge_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
+  unsigned long loopStartMillis = millis();
+
+  int queueCheckFrequency = storeData.ftpEdgeSaveInterval / storeData.imageBufferingEpochInterval;
+  queueCheckFrequency = queueCheckFrequency < 10 ? 10 : queueCheckFrequency;
+
+  String directoryPath_Before = "";
+
+  while (true)
+  {
+    stackDepthMaxUpdate(&stackDepthMax_DataSortLoop_Edge, __FUNCTION__);
+
+    if (xQueueEdge_Store == NULL)
+    {
+      M5_LOGW("null queue");
+      delay(100);
+      continue;
+    }
+
+    UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Store);
+    if (queueWaitingCount > queueCheckFrequency)
+    {
+      EdgeItem item;
+      u_int16_t saveInterval = storeData.ftpEdgeSaveInterval;
+      directoryPath_Before = "";
+
+      while (xQueueReceive(xQueueEdge_Store, &item, 0) == pdTRUE)
+      {
+        if (item.epoc < lastCheckEpoc)
+          lastCheckEpoc = 0;
+        if (item.epoc - lastCheckEpoc > 1)
+          M5_LOGW("EdgeEpocDeltaOver 1:");
+        lastCheckEpoc = item.epoc;
+
+        if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
+        {
+          nextSaveEpoc = item.epoc + saveInterval;
+          sprintf(item.dirPath, "%s", (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, true)).c_str());
+          sprintf(item.filePath, "%s", (String(item.dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, true)).c_str());
+          addEdgeItemToQueue(xQueueEdge_Sorted, &item);
+        }
+      }
+    }
+
+    M5_LOGI("loopTime = %u", millis() - loopStartMillis);
+
+    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
+    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
+
+    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
+    loopStartMillis = millis();
+  }
+
+  M5_LOGE("Loop STOP");
+  vTaskDelete(NULL);
+}
+
+String dataSaveLoop_Edge_DataLines; // dataLines Buff
+void DataSaveLoop_Edge(void *arg)
+{
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
+  unsigned long loopStartMillis = millis();
+  String directoryPath_Before = "";
+
+  while (true)
+  {
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Edge, __FUNCTION__);
+
+    if (xQueueEdge_Sorted == NULL)
+    {
+      M5_LOGW("null queue");
+      delay(100);
+      loopStartMillis = millis();
+      continue;
+    }
+
+    UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Sorted);
+    M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+
+    if (queueWaitingCount > 0)
+    {
+      EdgeItem item;
+      u_int16_t saveInterval = storeData.ftpEdgeSaveInterval;
+      directoryPath_Before = "";
+
+      queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Sorted);
+      M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+
+      std::vector<String> directryPath_CheckList;
+      String dataLines;
+      dataLines.reserve((queueWaitingCount + 2) * 30);
+
+      while (queueWaitingCount > 0)
+      {
+        if (xQueueReceive(xQueueEdge_Sorted, &item, 0) == pdTRUE)
+        {
+          if (directoryPath_Before != item.dirPath)
+            directryPath_CheckList.push_back(String(item.dirPath));
+
+          dataLines += NtpClient.convertTimeEpochToString(item.epoc) + "," + String(item.edgeX) + "\r\n";
+        }
+        else
+        {
+          M5_LOGE();
+        }
+
+        delay(1);
+        queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Sorted);
+        M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+      }
+      
+      dataSaveLoop_Edge_DataLines += dataLines;
+
+      // take FTP
+      if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_FTP_BLOCK_TIM) != pdTRUE)
+      {
+        M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
+        delay(100);
+        loopStartMillis = millis();
+        continue;
+      }
+      M5_LOGD("ftp mutex take");
+      mutex_FTP_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+      ftpOpenCheck();
+
+      if (!ftp.isConnected())
+      {
+        delay(100);
+
+        xSemaphoreGive(mutex_FTP);
+        M5_LOGI("ftp mutex give");
+        mutex_FTP_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+        delay(100);
+        loopStartMillis = millis();
+        continue;
+      }
+
+      M5_LOGD("ftp Connected.");
+
+      // take Eth
+      M5_LOGD("Eth mutex take");
+      mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+      {
+        for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
+        {
+          ftp.MakeDirRecursive(directryPath_CheckList[i]);
+        }
+        ftp.AppendText(String(item.filePath) + ".csv", dataSaveLoop_Edge_DataLines);
+        xSemaphoreGive(mutex_Eth);
+        M5_LOGI("Eth mutex give");
+        mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+        M5_LOGV("\n    FTP: %s", item.filePath);
+        directoryPath_Before = item.dirPath;
+      }
+      else
+      {
+        M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+      }
+
+      M5_LOGI("loopTime = %u ms", millis() - loopStartMillis);
+
+      delay(100);
+      xSemaphoreGive(mutex_FTP);
+      M5_LOGI("ftp mutex give");
+      mutex_FTP_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+      dataSaveLoop_Edge_DataLines.clear();
+    }
+
+    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
+    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
+
+    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
+
+    loopStartMillis = millis();
+  }
+
+  ftpCloseCheck();
+  M5_LOGE("Loop STOP");
+  vTaskDelete(NULL);
+}
+
+/*
 void DataSaveLoop_Edge(void *arg)
 {
   unsigned long lastCheckEpoc_Edge = 0;
@@ -999,7 +1193,7 @@ void DataSaveLoop_Edge(void *arg)
   ftpCloseCheck();
   M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
-}
+}*/
 
 bool DataSave_NeedOffset(u_int16_t SaveInterval)
 {

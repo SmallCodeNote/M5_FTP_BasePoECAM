@@ -118,6 +118,7 @@ public:
     uint16_t InitAsciiPassiveMode();
     uint16_t NewFile(String fileName);
     uint16_t AppendFile(String fileName);
+    uint16_t AppendText(String filePath, String textLine);
     uint16_t AppendTextLine(String filePath, String textLine);
     uint16_t AppendDataArrayAsTextLine(String filePath, String headLine, u_int16_t *buf, int32_t len);
     uint16_t AppendData(String filePath, unsigned char *data, int datalength);

@@ -664,6 +664,22 @@ uint16_t M5_Ethernet_FtpClient::AppendFile(String fileName)
 
   return GetCmdAnswer();
 }
+/////////////////////////////////////////////
+
+uint16_t M5_Ethernet_FtpClient::AppendText(String filePath, String textLine)
+{
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
+  if (isErrorCode(InitAsciiPassiveMode()))
+    return responseCode;
+
+  if (isErrorCode(AppendFile(filePath)))
+    return responseCode;
+
+  if (isErrorCode(WriteData(textLine)))
+    return responseCode;
+
+  return CloseDataClient();
+}
 
 /////////////////////////////////////////////
 

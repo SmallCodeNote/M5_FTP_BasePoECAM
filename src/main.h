@@ -7,7 +7,7 @@
 
 #define FLASH_EN_PIN 25
 
-#define MUX_FTP_BLOCK_TIM 5000 // mutex block time
+#define MUX_FTP_BLOCK_TIM 10000 // mutex block time
 #define MUX_ETH_BLOCK_TIM 6000 // mutex block time
 
 #define MAIN_LOOP_QUEUE_JPEG_SRC_SIZE 60
@@ -42,6 +42,9 @@ struct EdgeItem
 {
   unsigned long epoc;
   u_int16_t edgeX;
+
+  char dirPath[128];
+  char filePath[128];
 };
 
 void CameraSensorFullSetupFromStoreData();
@@ -76,6 +79,6 @@ extern String mutex_Eth_Take_FunctionName;
 extern String mutex_FTP_Take_FunctionName;
 
 // extern portMUX_TYPE mutex_Ethernet;
-//bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
+// bool xSemaphoreTakeRetry(SemaphoreHandle_t mutex, int retrySec);
 
 #endif
