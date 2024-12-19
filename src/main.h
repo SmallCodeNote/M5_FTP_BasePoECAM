@@ -24,8 +24,8 @@ struct JpegItem
   u_int32_t width;
   u_int32_t height;
 
-  char dirPath[128];
-  char filePath[128];
+  char *dirPath;
+  char *filePath;
 };
 
 struct ProfItem
@@ -33,9 +33,10 @@ struct ProfItem
   unsigned long epoc;
   size_t len;
   u_int16_t *buf;
-
-  char dirPath[128];
-  char filePath[128];
+  char *textLine;
+  size_t textLineLen;
+  char *dirPath;
+  char *filePath;
 };
 
 struct EdgeItem
@@ -43,8 +44,8 @@ struct EdgeItem
   unsigned long epoc;
   u_int16_t edgeX;
 
-  char dirPath[128];
-  char filePath[128];
+  char *dirPath;
+  char *filePath;
 };
 
 void CameraSensorFullSetupFromStoreData();

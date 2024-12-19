@@ -223,16 +223,24 @@ void freeJpegItem(void *item)
 {
   JpegItem *jpegItem = (JpegItem *)item;
   free(jpegItem->buf);
+  free(jpegItem->dirPath);
+  free(jpegItem->filePath);
 }
 
 void freeProfItem(void *item)
 {
   ProfItem *profItem = (ProfItem *)item;
   free(profItem->buf);
+  free(profItem->textLine);
+  free(profItem->dirPath);
+  free(profItem->filePath);
 }
 
 void freeEdgeItem(void *item)
 {
+  EdgeItem *edgeItem = (EdgeItem *)item;
+  free(edgeItem->dirPath);
+  free(edgeItem->filePath);
 }
 
 void freeAllItemFromQueue(QueueHandle_t queueHandle, size_t itemSize, void (*freeFunc)(void *))
@@ -626,8 +634,13 @@ void DataSortLoop_Jpeg(void *arg)
         if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
         {
           nextSaveEpoc = item.epoc + saveInterval;
-          sprintf(item.dirPath, "%s", (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, false)).c_str());
-          sprintf(item.filePath, "%s", (String(item.dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, false)).c_str());
+
+          String dirPath = (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, false));
+          String filePath = (String(dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, false));
+
+          stringCopyToItemsCharArray(dirPath);
+          stringCopyToItemsCharArray(filePath);
+
           addJpegItemToQueue(xQueueJpeg_Sorted, &item);
         }
         else
@@ -781,7 +794,218 @@ String ProfDataStringCreate(u_int16_t *buf, int32_t len)
   return dataLine;
 }
 
+void DataSortLoop_Prof(void *arg)
+{
+  xQueueProf_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(ProfItem));
+  QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
+
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
+  unsigned long loopStartMillis = millis();
+
+  int queueCheckFrequency = storeData.ftpProfileSaveInterval / storeData.imageBufferingEpochInterval;
+  String directoryPath_Before = "";
+
+  while (true)
+  {
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, __FUNCTION__);
+
+    if (xQueueProf_Store == NULL)
+    {
+      M5_LOGW("null queue");
+      delay(100);
+      continue;
+    }
+
+    UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueProf_Store);
+    M5_LOGI("uxQueueMessagesWaiting = %u", queueWaitingCount);
+    if (queueWaitingCount > queueCheckFrequency)
+    {
+      ProfItem item;
+      u_int16_t saveInterval = storeData.ftpProfileSaveInterval;
+      directoryPath_Before = "";
+
+      while (xQueueReceive(xQueueProf_Store, &item, 0))
+      {
+        if (item.epoc < lastCheckEpoc)
+          lastCheckEpoc = 0;
+        if (item.epoc - lastCheckEpoc > 1)
+          M5_LOGW("ProfEpocDeltaOver 1:");
+        lastCheckEpoc = item.epoc;
+
+        if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
+        {
+          nextSaveEpoc = item.epoc + saveInterval;
+
+          String dirPath = (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, true));
+          String filePath = (String(dirPath) + "/prof_" + createFilenameFromEpoc(item.epoc, saveInterval, true));
+
+          stringCopyToItemsCharArray(dirPath);
+          stringCopyToItemsCharArray(filePath);
+
+          String headLine = NtpClient.convertTimeEpochToString(item.epoc);
+          String dataLine = ProfDataStringCreate(item.buf, item.len);
+          String textLine = headLine + "," + dataLine;
+
+          item.textLineLen = textLine.length();
+          stringCopyToItemsCharArray(textLine);
+
+          addProfItemToQueue(xQueueProf_Sorted, &item);
+        }
+        else
+        {
+          addProfItemToQueue(xQueue_FreeWaiting, &item);
+        }
+      }
+    }
+
+    M5_LOGI("loopTime = %u", millis() - loopStartMillis);
+    freeAllProfItemFromQueue(xQueue_FreeWaiting);
+
+    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
+    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
+
+    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
+    loopStartMillis = millis();
+  }
+
+  M5_LOGE("Loop STOP");
+  vTaskDelete(NULL);
+}
+
+String dataSaveLoop_Prof_DataLines; // dataLines Buff
 void DataSaveLoop_Prof(void *arg)
+{
+  unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
+  unsigned long loopStartMillis = millis();
+  String directoryPath_Before = "";
+
+  while (true)
+  {
+    stackDepthMaxUpdate(&stackDepthMax_DataSaveLoop_Prof, __FUNCTION__);
+
+    if (xQueueProf_Sorted == NULL)
+    {
+      M5_LOGW("null queue");
+      delay(100);
+      loopStartMillis = millis();
+      continue;
+    }
+
+    UBaseType_t queueWaitingCount = uxQueueMessagesWaiting(xQueueProf_Sorted);
+    M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+
+    if (queueWaitingCount > 0)
+    {
+      ProfItem item;
+      u_int16_t saveInterval = storeData.ftpProfileSaveInterval;
+      directoryPath_Before = "";
+
+      queueWaitingCount = uxQueueMessagesWaiting(xQueueProf_Sorted);
+      M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+
+      std::vector<String> directryPath_CheckList;
+      String dataLines;
+      // dataLines.reserve((queueWaitingCount + 2) * 30);
+
+      while (queueWaitingCount > 0)
+      {
+        if (xQueueReceive(xQueueProf_Sorted, &item, 0) == pdTRUE)
+        {
+          if (directoryPath_Before != item.dirPath)
+            directryPath_CheckList.push_back(String(item.dirPath));
+
+          dataLines += String(item.textLine) + "\r\n";
+        }
+        else
+        {
+          M5_LOGE();
+        }
+
+        delay(1);
+        queueWaitingCount = uxQueueMessagesWaiting(xQueueProf_Sorted);
+        M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
+      }
+
+      dataSaveLoop_Prof_DataLines += dataLines;
+
+      unsigned char *dataLinesBuff = (unsigned char *)dataSaveLoop_Prof_DataLines.c_str();
+      unsigned int dataLinesLength = dataSaveLoop_Prof_DataLines.length();
+
+      // take FTP
+      if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_FTP_BLOCK_TIM) != pdTRUE)
+      {
+        M5_LOGW("ftp mutex can not take. : take function = %s", mutex_FTP_Take_FunctionName.c_str());
+        delay(100);
+        loopStartMillis = millis();
+        continue;
+      }
+      M5_LOGD("ftp mutex take");
+      mutex_FTP_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+      ftpOpenCheck();
+
+      if (!ftp.isConnected())
+      {
+        delay(100);
+
+        xSemaphoreGive(mutex_FTP);
+        M5_LOGI("ftp mutex give");
+        mutex_FTP_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+        delay(100);
+        loopStartMillis = millis();
+        continue;
+      }
+
+      M5_LOGD("ftp Connected.");
+
+      // take Eth
+      M5_LOGD("Eth mutex take");
+      mutex_Eth_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
+      {
+        for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
+        {
+          ftp.MakeDirRecursive(directryPath_CheckList[i]);
+        }
+        // ftp.AppendText(String(item.filePath) + ".csv", dataSaveLoop_Prof_DataLines);
+        ftp.AppendData(String(item.filePath) + ".csv", dataLinesBuff, dataLinesLength);
+        xSemaphoreGive(mutex_Eth);
+        M5_LOGI("Eth mutex give");
+        mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+        M5_LOGV("\n    FTP: %s", item.filePath);
+        directoryPath_Before = item.dirPath;
+      }
+      else
+      {
+        M5_LOGW("eth mutex can not take. : take function = %s", mutex_Eth_Take_FunctionName.c_str());
+      }
+
+      M5_LOGI("loopTime = %u ms", millis() - loopStartMillis);
+
+      delay(100);
+      xSemaphoreGive(mutex_FTP);
+      M5_LOGI("ftp mutex give");
+      mutex_FTP_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+
+      dataSaveLoop_Prof_DataLines.clear();
+    }
+
+    int loopEndDelay = storeData.imageBufferingEpochInterval * 1000 - (millis() - loopStartMillis);
+    M5_LOGI("%d, %u", loopEndDelay, storeData.imageBufferingEpochInterval);
+
+    delay(loopEndDelay < 0 ? 1 : loopEndDelay);
+
+    loopStartMillis = millis();
+  }
+
+  ftpCloseCheck();
+  M5_LOGE("Loop STOP");
+  vTaskDelete(NULL);
+}
+
+/*void DataSaveLoop_Prof(void *arg)
 {
   QueueHandle_t xQueue_FreeWaiting = xQueueCreate(MAIN_LOOP_QUEUE_PROF_SRC_SIZE, sizeof(ProfItem));
 
@@ -895,11 +1119,11 @@ void DataSaveLoop_Prof(void *arg)
 
   M5_LOGE("Loop STOP");
   vTaskDelete(NULL);
-}
+}*/
 
 void DataSortLoop_Edge(void *arg)
 {
-  xQueueEdge_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(JpegItem));
+  xQueueEdge_Sorted = xQueueCreate(MAIN_LOOP_QUEUE_JPEG_SRC_SIZE, sizeof(EdgeItem));
 
   unsigned long lastCheckEpoc = 0, nextSaveEpoc = 0;
   unsigned long loopStartMillis = millis();
@@ -938,8 +1162,13 @@ void DataSortLoop_Edge(void *arg)
         if (DataSave_Trigger(item.epoc, saveInterval, nextSaveEpoc))
         {
           nextSaveEpoc = item.epoc + saveInterval;
-          sprintf(item.dirPath, "%s", (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, true)).c_str());
-          sprintf(item.filePath, "%s", (String(item.dirPath) + "/" + createFilenameFromEpoc(item.epoc, saveInterval, true)).c_str());
+
+          String dirPath = (String(storeData.deviceName) + "/" + createDirectorynameFromEpoc(item.epoc, saveInterval, true));
+          String filePath = (String(dirPath) + "/edge_" + createFilenameFromEpoc(item.epoc, saveInterval, true));
+
+          stringCopyToItemsCharArray(dirPath);
+          stringCopyToItemsCharArray(filePath);
+
           addEdgeItemToQueue(xQueueEdge_Sorted, &item);
         }
       }
@@ -1011,8 +1240,11 @@ void DataSaveLoop_Edge(void *arg)
         queueWaitingCount = uxQueueMessagesWaiting(xQueueEdge_Sorted);
         M5_LOGI("queueWaitingCount = %u", queueWaitingCount);
       }
-      
+
       dataSaveLoop_Edge_DataLines += dataLines;
+
+      unsigned char *dataLinesBuff = (unsigned char *)dataSaveLoop_Edge_DataLines.c_str();
+      unsigned int dataLinesLength = dataSaveLoop_Edge_DataLines.length();
 
       // take FTP
       if (xSemaphoreTake(mutex_FTP, (TickType_t)MUX_FTP_BLOCK_TIM) != pdTRUE)
@@ -1051,7 +1283,8 @@ void DataSaveLoop_Edge(void *arg)
         {
           ftp.MakeDirRecursive(directryPath_CheckList[i]);
         }
-        ftp.AppendText(String(item.filePath) + ".csv", dataSaveLoop_Edge_DataLines);
+        // ftp.AppendText(String(item.filePath) + ".csv", dataSaveLoop_Edge_DataLines);
+        ftp.AppendData(String(item.filePath) + ".csv", dataLinesBuff, dataLinesLength);
         xSemaphoreGive(mutex_Eth);
         M5_LOGI("Eth mutex give");
         mutex_Eth_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";

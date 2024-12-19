@@ -9,9 +9,18 @@ typedef struct
 } SensorShotTaskParams;
 */
 
-//void SensorShotLoop(void *arg);
-//void SensorShotTask(void *param);
+// void SensorShotLoop(void *arg);
+// void SensorShotTask(void *param);
 
+#define stringCopyToItemsCharArray(field)            \
+  do                                                 \
+  {                                                  \
+    item.field = (char *)malloc(field.length() + 1); \
+    if (item.field != NULL)                          \
+    {                                                \
+      strcpy(item.field, field.c_str());             \
+    }                                                \
+  } while (0)
 
 void TimeUpdateLoop(void *arg);
 void TimeServerAccessLoop(void *arg);
