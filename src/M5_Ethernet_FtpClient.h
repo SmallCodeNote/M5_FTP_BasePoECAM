@@ -99,8 +99,7 @@ private:
     uint16_t _dataPort;
 
     bool inASCIIMode = false;
-    bool isErrorCode(uint16_t responseCode);
-
+    
     std::vector<String> SplitPath(const String &path);
 
     unsigned long nextConnectionCheckMillis=0;
@@ -111,6 +110,9 @@ public:
 
     M5_Ethernet_FtpClient(String _serverAdress, uint16_t _port, String _userName, String _passWord, uint16_t _timeout = 10000);
     M5_Ethernet_FtpClient(String _serverAdress, String _userName, String _passWord, uint16_t _timeout = 10000);
+
+    bool isErrorCode(uint16_t responseCode);
+    bool isSuccessCode(uint16_t responseCode);
 
     uint16_t OpenConnection();
     void CloseConnection();
@@ -141,6 +143,7 @@ public:
     uint16_t DownloadFile(const char *filename, unsigned char *buf, size_t length, bool printUART = false);
 
     String GetServerAddress() ;
+    String GetDirectoryPath(const String &path);
     bool SetUserName(String _userName);
     bool SetPassWord(String _passWord);
     bool SetServerAddress(String _serverAdress);

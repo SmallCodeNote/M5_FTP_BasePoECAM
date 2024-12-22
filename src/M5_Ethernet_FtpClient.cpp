@@ -122,7 +122,10 @@ bool M5_Ethernet_FtpClient::isErrorCode(uint16_t responseCode)
 {
   return responseCode >= 400 && responseCode < 600;
 }
-
+bool M5_Ethernet_FtpClient::isSuccessCode(uint16_t responseCode)
+{
+  return !isErrorCode(responseCode);
+}
 /**
  * @brief Open command connection
  */
@@ -167,7 +170,14 @@ uint16_t M5_Ethernet_FtpClient::OpenConnection()
   FTP_LOGINFO1("Send PASSWORD =", passWord);
   ftpClient.print(FTP_COMMAND_PASS);
   ftpClient.println(passWord);
-  return GetCmdAnswer();
+
+  responceCode = GetCmdAnswer();
+
+  if (isSuccessCode(responceCode))
+  {
+    _isConnected = true;
+  }
+  return responceCode;
 }
 
 /**
@@ -215,7 +225,8 @@ uint16_t M5_Ethernet_FtpClient::GetCmdAnswer(char *result, int offsetStart)
   }
 
   uint16_t responseCode = atoi(outBuf);
-  if (isErrorCode(responseCode))
+
+  /*if (isErrorCode(responseCode))
   {
     _isConnected = false;
     isConnected();
@@ -224,7 +235,7 @@ uint16_t M5_Ethernet_FtpClient::GetCmdAnswer(char *result, int offsetStart)
   else
   {
     _isConnected = true;
-  }
+  }*/
 
   if (result != NULL)
   {
@@ -552,6 +563,8 @@ bool M5_Ethernet_FtpClient::DirExists(String dir)
   }
 
   FTP_LOGINFO("Send CWD");
+
+  unsigned long startMillis = millis();
   ftpClient.print(FTP_COMMAND_CURRENT_WORKING_DIR);
   ftpClient.println(dir);
 
@@ -561,7 +574,7 @@ bool M5_Ethernet_FtpClient::DirExists(String dir)
   ftpClient.println("/");
   GetCmdAnswer();
 
-  M5_LOGD("DirExists Answer = %u", asw);
+  M5_LOGD("ans = %u ((%u)):: %s", asw, millis() - startMillis, dir.c_str());
   return asw == 250;
 }
 
@@ -581,14 +594,33 @@ uint16_t M5_Ethernet_FtpClient::MakeDir(String dir)
 
 uint16_t M5_Ethernet_FtpClient::MakeDirRecursive(String dir)
 {
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
+
   if (!isConnected())
   {
+    M5_LOGI("MakeDirRecursive: Not connected error");
     FTP_LOGERROR("MakeDirRecursive: Not connected error");
     return FTP_RESCODE_CLIENT_ISNOT_CONNECTED;
   }
 
-  FTP_LOGINFO("Send MKD Recursive");
+  FTP_LOGINFO("Send MKD");
+  ftpClient.print(FTP_COMMAND_MAKE_DIR);
+  ftpClient.println(dir);
+  responseCode = GetCmdAnswer();
 
+  if (isSuccessCode(responseCode))
+  { // Success
+    M5_LOGI();
+    return responseCode;
+  }
+
+  if (responseCode == 550 && DirExists(dir))
+  {
+    M5_LOGI();
+    return FTP_RESCODE_ACTION_SUCCESS;
+  }
+
+  FTP_LOGINFO("Send MKD Recursive");
   std::vector<String> paths = SplitPath(dir);
   String currentPath = "";
 
@@ -597,13 +629,30 @@ uint16_t M5_Ethernet_FtpClient::MakeDirRecursive(String dir)
     currentPath += "/" + subDir;
     ftpClient.print(FTP_COMMAND_MAKE_DIR);
     ftpClient.println(currentPath);
-    uint16_t res = GetCmdAnswer();
-    if (isErrorCode(res) && res != 550)
+    responseCode = GetCmdAnswer();
+    M5_LOGI("%u , %s", responseCode, currentPath.c_str());
+
+    if (isErrorCode(responseCode) && responseCode != 550)
     { // Ignore "Directory already exists" error
-      return res;
+      M5_LOGI();
+      return responseCode;
     }
   }
+  M5_LOGI();
   return FTP_RESCODE_ACTION_SUCCESS;
+}
+
+String M5_Ethernet_FtpClient::GetDirectoryPath(const String &filePath)
+{
+  std::vector<String> paths = SplitPath(filePath);
+  String directoryPath = "";
+  for (size_t i = 0; i < paths.size() - 1; ++i)
+  {
+    directoryPath += paths[i];
+    if (i < paths.size() - 2)
+      directoryPath += "/";
+  }
+  return directoryPath;
 }
 
 std::vector<String> M5_Ethernet_FtpClient::SplitPath(const String &path)
@@ -652,6 +701,7 @@ uint16_t M5_Ethernet_FtpClient::RemoveDir(String dir)
 
 uint16_t M5_Ethernet_FtpClient::AppendFile(String fileName)
 {
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
   if (!isConnected())
   {
     FTP_LOGERROR("AppendFile: Not connected error");
@@ -662,21 +712,56 @@ uint16_t M5_Ethernet_FtpClient::AppendFile(String fileName)
   ftpClient.print(FTP_COMMAND_APPEND_FILE);
   ftpClient.println(fileName);
 
-  return GetCmdAnswer();
+  responseCode = GetCmdAnswer();
+
+  if (isSuccessCode(responseCode))
+  {
+    //M5_LOGD("FTP responce code : %u", responseCode);
+    return responseCode;
+  }
+
+  M5_LOGE("AppendFile Error :: %u :: %s", responseCode, fileName.c_str());
+
+  String dirPath = GetDirectoryPath(fileName);
+  M5_LOGD("CreateDirectory  :: %s", dirPath.c_str());
+  responseCode = MakeDirRecursive(dirPath);
+
+  ftpClient.print(FTP_COMMAND_APPEND_FILE);
+  ftpClient.println(fileName);
+  responseCode = GetCmdAnswer();
+
+  if (isErrorCode(responseCode) && responseCode != 550)
+  { // Ignore "Directory already exists" error
+    M5_LOGE("FTP responce code : %u", responseCode);
+    return responseCode;
+  }
+
+  M5_LOGD("Responce  :: %u", responseCode);
+  return responseCode;
 }
 /////////////////////////////////////////////
 
 uint16_t M5_Ethernet_FtpClient::AppendText(String filePath, String textLine)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
-  if (isErrorCode(InitAsciiPassiveMode()))
+  responseCode = InitAsciiPassiveMode();
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(AppendFile(filePath)))
+  }
+  responseCode = AppendFile(filePath);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(WriteData(textLine)))
+  }
+  responseCode = WriteData(textLine);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
+  }
 
   return CloseDataClient();
 }
@@ -686,14 +771,24 @@ uint16_t M5_Ethernet_FtpClient::AppendText(String filePath, String textLine)
 uint16_t M5_Ethernet_FtpClient::AppendTextLine(String filePath, String textLine)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
-  if (isErrorCode(InitAsciiPassiveMode()))
+  responseCode = InitAsciiPassiveMode();
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(AppendFile(filePath)))
+  }
+  responseCode = AppendFile(filePath);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(WriteData(textLine + "\r\n")))
+  }
+  responseCode = WriteData(textLine + "\r\n");
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
+  }
 
   return CloseDataClient();
 }
@@ -703,11 +798,18 @@ uint16_t M5_Ethernet_FtpClient::AppendTextLine(String filePath, String textLine)
 uint16_t M5_Ethernet_FtpClient::AppendDataArrayAsTextLine(String filePath, String headLine, u_int16_t *buf, int32_t len)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
-  if (isErrorCode(InitAsciiPassiveMode()))
+  responseCode = InitAsciiPassiveMode();
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return CloseDataClient();
-
-  if (isErrorCode(AppendFile(filePath)))
+  }
+  responseCode = AppendFile(filePath);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return CloseDataClient();
+  }
 
   WriteData(headLine);
 
@@ -715,9 +817,12 @@ uint16_t M5_Ethernet_FtpClient::AppendDataArrayAsTextLine(String filePath, Strin
   {
     WriteData("," + String(buf[i]));
   }
-
-  if (isErrorCode(WriteData("\r\n")))
+  responseCode = WriteData("\r\n");
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return CloseDataClient();
+  }
 
   return CloseDataClient();
 }
@@ -727,14 +832,24 @@ uint16_t M5_Ethernet_FtpClient::AppendDataArrayAsTextLine(String filePath, Strin
 uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data, int datalength)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
-  if (isErrorCode(InitAsciiPassiveMode()))
+  responseCode = InitAsciiPassiveMode();
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(AppendFile(filePath)))
+  }
+  responseCode = AppendFile(filePath);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
-
-  if (isErrorCode(WriteData(data, datalength)))
+  }
+  responseCode = WriteData(data, datalength);
+  if (isErrorCode(responseCode))
+  {
+    M5_LOGE("FTP responce code : %u", responseCode);
     return responseCode;
+  }
 
   return CloseDataClient();
 }
