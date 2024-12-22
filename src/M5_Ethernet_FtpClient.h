@@ -38,7 +38,8 @@ SOFTWARE.
 #define F(string_literal) (FPSTR(PSTR(string_literal)))
 
 #define FTP_PORT 21
-#define FTP_BUFFER_SIZE 1500
+//#define FTP_BUFFER_SIZE 1500
+#define FTP_BUFFER_SIZE 3500
 #define FTP_TIMEOUT_MS 3000UL
 #define FTP_ENTERING_PASSIVE_MODE 227
 
@@ -47,6 +48,8 @@ SOFTWARE.
 #define FTP_RESCODE_DATA_CONNECTION_ERROR 425
 #define FTP_RESCODE_ACTION_SUCCESS 200 // The requested action has been successfully.
 #define FTP_RESCODE_SYNTAX_ERROR 500
+
+#define FTP_RESCODE_NOT_LOGIN 530
 
 #define FTP_COMMAND_QUIT F("QUIT")
 #define FTP_COMMAND_USER F("USER ")
@@ -70,6 +73,9 @@ SOFTWARE.
 #define FTP_COMMAND_FILE_UPLOAD F("STOR ")
 
 #define FTP_COMMAND_PASSIVE_MODE F("PASV")
+
+#define FTP_COMMAND_SERVER_SYSTEM_INFO F("SYST")
+#define FTP_COMMAND_SERVER_STATUS_INFO F("STAT")
 
 class M5_Ethernet_FtpClient
 {
@@ -99,20 +105,21 @@ private:
     uint16_t _dataPort;
 
     bool inASCIIMode = false;
-    
+
     std::vector<String> SplitPath(const String &path);
 
-    unsigned long nextConnectionCheckMillis=0;
+    unsigned long nextConnectionCheckMillis = 0;
 
 public:
     //    M5_Ethernet_FtpClient(char *_serverAdress, uint16_t _port, char *_userName, char *_passWord, uint16_t _timeout = 10000);
     //    M5_Ethernet_FtpClient(char *_serverAdress, char *_userName, char *_passWord, uint16_t _timeout = 10000);
 
-    M5_Ethernet_FtpClient(String _serverAdress, uint16_t _port, String _userName, String _passWord, uint16_t _timeout = 10000);
-    M5_Ethernet_FtpClient(String _serverAdress, String _userName, String _passWord, uint16_t _timeout = 10000);
+    M5_Ethernet_FtpClient(String _serverAdress, uint16_t _port, String _userName, String _passWord, uint16_t _timeout = 3000);
+    M5_Ethernet_FtpClient(String _serverAdress, String _userName, String _passWord, uint16_t _timeout = 3000);
 
     bool isErrorCode(uint16_t responseCode);
     bool isSuccessCode(uint16_t responseCode);
+    u_int8_t getSockIndex();
 
     uint16_t OpenConnection();
     void CloseConnection();
@@ -142,11 +149,14 @@ public:
     uint16_t DownloadString(const char *filename, String &str);
     uint16_t DownloadFile(const char *filename, unsigned char *buf, size_t length, bool printUART = false);
 
-    String GetServerAddress() ;
+    String GetServerAddress();
     String GetDirectoryPath(const String &path);
     bool SetUserName(String _userName);
     bool SetPassWord(String _passWord);
     bool SetServerAddress(String _serverAdress);
+
+    bool CheckServerAnswerReturn(); // server return answer : true
+    bool CheckServerLogin();        // user login : true
 };
 
 // #define FTP_DEBUG_OUTPUT M5.Lcd
@@ -445,5 +455,15 @@ const char FTP_LINE[] = "========================================\n";
         FTP_PRINT_SP;                     \
         FTP_PRINTLN(yy);                  \
     }
+
+/**
+ * @brief need val ... uint16_t responceCode;
+ */
+#define FTP_CMD_SEND_AND_ERROR_RETURN_UINT16T(cmd) \
+    FTP_LOGINFO(cmd);                              \
+    ftpClient.println(cmd);                        \
+    responseCode = GetCmdAnswer();                 \
+    if (isErrorCode(responseCode))                 \
+        return responseCode;
 
 #endif

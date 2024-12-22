@@ -561,7 +561,8 @@ bool ftpOpenCheck()
     {
       mutex_Eth_SocketOpen_Take_FunctionName = String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
       responceCode = ftp.OpenConnection();
-      mutex_Eth_SocketOpen_Take_FunctionName = String("nan ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
+      M5_LOGI("FTP connection socketIndex = %u", ftp.getSockIndex());
+      mutex_Eth_SocketOpen_Take_FunctionName = String("Free ") + String(__FUNCTION__) + ": " + String(__LINE__) + " [" + String(millis()) + "]";
       xSemaphoreGive(mutex_Eth_SocketOpen);
     }
     else
@@ -570,10 +571,13 @@ bool ftpOpenCheck()
       return false;
     }
   }
-  
-  if (ftp.isErrorCode(responceCode))
-    return false;
 
+  if (ftp.isErrorCode(responceCode))
+  {
+    M5_LOGW("ERROR : %u", responceCode);
+    return false;
+  }
+  M5_LOGI("SUCCESS : %u", responceCode);
   return true;
 }
 
@@ -736,13 +740,14 @@ void DataSaveLoop_Jpeg(void *arg)
           {
             // Create Directory
 
-            /*if (directoryPath_Before != item.dirPath)
-            {directoryPath_Before = item.dirPath;
+            if (directoryPath_Before != item.dirPath)
+            {
+              directoryPath_Before = item.dirPath;
               responceTimeBase = millis();
               responce = ftp.MakeDirRecursive(item.dirPath);
               M5_LOGI("item.dirPath = %s", item.dirPath);
               M5_LOGI("ftp res = %u :: %u", responce, millis() - responceTimeBase);
-            }*/
+            }
 
             responceTimeBase = millis();
             responce = ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
@@ -957,11 +962,11 @@ void DataSaveLoop_Prof(void *arg)
       {
         // Create Directory
 
-        /*for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
+        for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
         {
           M5_LOGI("%s", directryPath_CheckList[i].c_str());
           ftp.MakeDirRecursive(directryPath_CheckList[i]);
-        }*/
+        }
 
         unsigned char *dataLinesBuff = (unsigned char *)dataSaveLoop_Prof_DataLines.c_str();
         unsigned int dataLinesLength = dataSaveLoop_Prof_DataLines.length();
@@ -1258,11 +1263,11 @@ void DataSaveLoop_Edge(void *arg)
       if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
       {
         // Create Directory
-        /*for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
+        for (size_t i = 0; i < directryPath_CheckList.size(); ++i)
         {
           M5_LOGI("%s", directryPath_CheckList[i].c_str());
           ftp.MakeDirRecursive(directryPath_CheckList[i]);
-        }*/
+        }
 
         unsigned char *dataLinesBuff = (unsigned char *)dataSaveLoop_Edge_DataLines.c_str();
         unsigned int dataLinesLength = dataSaveLoop_Edge_DataLines.length();

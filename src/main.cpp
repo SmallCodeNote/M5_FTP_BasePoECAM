@@ -38,7 +38,7 @@ String mutex_FTP_Take_FunctionName;
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 EthernetClient FtpClient(21);
-M5_Ethernet_FtpClient ftp(ftpSrvIP_String, ftp_user, ftp_pass, 60000);
+M5_Ethernet_FtpClient ftp(ftpSrvIP_String, ftp_user, ftp_pass, 3000);
 M5_Ethernet_NtpClient NtpClient;
 
 bool UnitEnable = true;

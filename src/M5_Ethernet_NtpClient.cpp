@@ -3,6 +3,7 @@
 void M5_Ethernet_NtpClient::begin()
 {
     Udp.begin(localPort);
+    M5_LOGI("NtpClient.sockindex =  %u" , Udp.sockindex);
 }
 
 void M5_Ethernet_NtpClient::updateTimeFromServer(String address)
