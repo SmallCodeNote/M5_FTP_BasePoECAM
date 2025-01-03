@@ -16,13 +16,31 @@
     paramName = currentLine.substring(start##paramName, end##paramName);                 \
   }
 
+#define HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(paramName)                                 \
+  {                                                                                      \
+    int start##paramName = currentLine.indexOf(#paramName "=") + strlen(#paramName "="); \
+    int end##paramName = currentLine.indexOf("&", start##paramName);                     \
+    if (end##paramName == -1)                                                            \
+    {                                                                                    \
+      end##paramName = currentLine.length();                                             \
+    }                                                                                    \
+    if (end##paramName < 1)                                                              \
+    {                                                                                    \
+      paramName = String(storeData.paramName);                                           \
+    }                                                                                    \
+    else                                                                                 \
+    {                                                                                    \
+      paramName = currentLine.substring(start##paramName, end##paramName);               \
+    }                                                                                    \
+  }
+
 #define HTML_PUT_INFOWITHLABEL(labelString) \
-  httpClient.print(#labelString ": ");          \
-  httpClient.print(labelString);                \
+  httpClient.print(#labelString ": ");      \
+  httpClient.print(labelString);            \
   httpClient.println("<br />");
 
-#define HTML_PUT_LI_INPUT(inputName)                                                             \
-  {                                                                                              \
+#define HTML_PUT_LI_INPUT(inputName)                                                                 \
+  {                                                                                                  \
     httpClient.println("<li>");                                                                      \
     httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
@@ -30,8 +48,8 @@
     httpClient.println("\" size=\"4\" required>");                                                   \
     httpClient.println("</li>");                                                                     \
   }
-#define HTML_PUT_LI_WIDEINPUT(inputName)                                                         \
-  {                                                                                              \
+#define HTML_PUT_LI_WIDEINPUT(inputName)                                                             \
+  {                                                                                                  \
     httpClient.println("<li>");                                                                      \
     httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
@@ -39,8 +57,8 @@
     httpClient.println("\" required>");                                                              \
     httpClient.println("</li>");                                                                     \
   }
-#define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName, comment)                                       \
-  {                                                                                              \
+#define HTML_PUT_LI_INPUT_WITH_COMMENT(inputName, comment)                                           \
+  {                                                                                                  \
     httpClient.println("<li>");                                                                      \
     httpClient.println("<label for=\"" #inputName "\">" #inputName "</label>");                      \
     httpClient.print("<input type=\"text\" id=\"" #inputName "\" name=\"" #inputName "\" value=\""); \
@@ -86,7 +104,6 @@ struct HTTP_UI_BITMAP
   u_int32_t fb_height;
 };
 
-
 extern EthernetServer HttpUIServer;
 extern String SensorValueString;
 
@@ -129,7 +146,6 @@ void HTTP_UI_POST_configTime(EthernetClient httpClient);
 
 String urlDecode(String input);
 void TaskRestart(void *arg);
-
 
 void HTTP_UI_JPEG_STORE_Task(void *arg);
 

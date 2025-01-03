@@ -818,16 +818,39 @@ void HTTP_UI_POST_configCamera(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
 {
+  // POST
+  String currentLine = "";
+  httpClient.setTimeout(5u);
+  // Load post data
+  while (httpClient.available())
+  {
+    currentLine = httpClient.readStringUntil('\n');
+  }
+  unsigned int currentLineLength = currentLine.length();
+  M5_LOGV("POST %u :: [%s]", currentLineLength, currentLine.c_str());
+  if (currentLineLength > 1)
+  {
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartShowPointCount);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartUpdateInterval);
+
+    PutEEPROM();
+  }
+
+  // GET
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
   HTTP_UI_PART_HTMLHeader(httpClient);
 
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<br />");
 
-  httpClient.println("<form action=\"/configChartSuccess.html\" method=\"post\">");
+  if (currentLineLength > 1)
+  {
+    httpClient.printf("Last Update <br /> %s", NtpClient.convertTimeEpochToString().c_str());
+  }
+
+  httpClient.println("<form action=\"/configChart.html\" method=\"post\">");
   httpClient.println("<ul>");
 
-  String currentLine = "";
   HTML_PUT_LI_INPUT(chartShowPointCount);
   HTML_PUT_LI_INPUT(chartUpdateInterval);
 
@@ -836,37 +859,6 @@ void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
   httpClient.println("</li>");
   httpClient.println("</ul>");
   httpClient.println("</form>");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}
-
-void HTTP_UI_POST_configChart(EthernetClient httpClient)
-{
-  String currentLine = "";
-  // Load post data
-  while (httpClient.available())
-  {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
-  }
-
-  HTTP_GET_PARAM_FROM_POST(chartShowPointCount);
-  HTTP_GET_PARAM_FROM_POST(chartUpdateInterval);
-
-  PutEEPROM();
-
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
-  httpClient.println("SUCCESS PARAMETER UPDATE.");
 
   httpClient.println("<br />");
   httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
@@ -1160,11 +1152,9 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
     currentLine += c;
   }
 
-  // String flashSwitchStatus = "OFF";
   String flashBrightnessStatus = flashIntensityMode;
   String flashTestLength = flashLength;
 
-  // HTTP_GET_PARAM_FROM_POST(flashSwitchStatus);
   HTTP_GET_PARAM_FROM_POST(flashBrightnessStatus);
   HTTP_GET_PARAM_FROM_POST(flashTestLength);
 
@@ -1186,24 +1176,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
   storeData.flashIntensityMode = brightness_u;
   storeData.flashLength = flashTestLength_u;
   delay(storeData.imageBufferingEpochInterval);
-  /*
-    if (flashSwitchStatus == "ON")
-    {
-      M5_LOGW("FlashON: %u", brightness_u);
-      unit_flash_set_brightness(brightness_u);
-      // digitalWrite(FLASH_EN_PIN, HIGH);
 
-      // delay(30);
-      // xTaskCreatePinnedToCore(HTTP_UI_PAGE_flashSwitch_Task, "HTTP_UI_PAGE_flashSwitch_Task", 4096, NULL, 0, NULL, 0);
-      // delay(flashTestLength_u);
-
-      // digitalWrite(FLASH_EN_PIN, LOW);
-    }
-    else
-    {
-      M5_LOGW("FlashOFF");
-    }
-  */
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
   HTTP_UI_PART_HTMLHeader(httpClient);
 
@@ -1214,8 +1187,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
   httpClient.println("<ul>");
 
   currentLine = "";
-  // flashSwitchStatus = "ON";
-  // HTML_PUT_LI_INPUT(flashSwitchStatus);
+
   HTML_PUT_LI_INPUT(flashTestLength);
 
   String optionString = " selected";
@@ -1244,7 +1216,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
   httpClient.println("</select><br>");
 
   httpClient.println("<li class=\"button\">");
-  httpClient.println("<button type=\"submit\">Flash</button>");
+  httpClient.println("<button type=\"submit\">Save and Flash</button>");
   httpClient.println("</li>");
   httpClient.println("</ul>");
   httpClient.println("</form>");
@@ -1253,12 +1225,7 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
   httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
   httpClient.printf("<img src=\"/sensorImageNow.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
-  /*
-    if (HTTP_UI_JPEG_flashTestJPEG_len > 0)
-    {
-      httpClient.printf("<img src=\"/flashTestImage.jpg?%s\">", NtpClient.convertTimeEpochToString().c_str());
-    }
-  */
+
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
@@ -1305,10 +1272,12 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "cameraLineView.html", HTTP_UI_PAGE_cameraLineView},
     {HTTP_UI_MODE_GET, "capture.jpg", HTTP_UI_STREAM_JPEG},
     {HTTP_UI_MODE_GET, "configParam.html", HTTP_UI_PAGE_configParam},
-    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_PAGE_configChart},
     {HTTP_UI_MODE_GET, "configCamera.html", HTTP_UI_PAGE_configCamera},
     {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
     {HTTP_UI_MODE_GET, "unitTime.html", HTTP_UI_PAGE_unitTime},
+
+    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_PAGE_configChart},
+    {HTTP_UI_MODE_POST, "configChart.html", HTTP_UI_PAGE_configChart},
 
     {HTTP_UI_MODE_GET, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
     {HTTP_UI_MODE_POST, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
@@ -1318,7 +1287,6 @@ PageHandler pageHandlers[] = {
 
     {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
     {HTTP_UI_MODE_POST, "configParamSuccess.html", HTTP_UI_POST_configParam},
-    {HTTP_UI_MODE_POST, "configChartSuccess.html", HTTP_UI_POST_configChart},
     {HTTP_UI_MODE_POST, "configCameraSuccess.html", HTTP_UI_POST_configCamera},
     {HTTP_UI_MODE_POST, "configTimeSuccess.html", HTTP_UI_POST_configTime},
     {HTTP_UI_MODE_GET, " ", HTTP_UI_PAGE_top} // default handler
@@ -1385,7 +1353,7 @@ void HTTP_UI()
       currentLine.replace("\r", "");
       unsigned int currentLineLength = currentLine.length();
 
-      if (currentLineLength == 0)//Final Line Reach
+      if (currentLineLength == 0) // Final Line Reach
       {
         if (getRequest)
         {
@@ -1398,7 +1366,7 @@ void HTTP_UI()
         M5_LOGD("break from request line end.");
         break;
       }
-      else //Line have contents
+      else // Line have contents
       {
         M5_LOGV("%s", currentLine.c_str());
         if (currentLineLength > 6 && (currentLine.startsWith("GET /") || currentLine.startsWith("POST /")))
