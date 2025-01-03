@@ -130,7 +130,7 @@ void HTTP_UI_JPEG_sensorImageNow(EthernetClient httpClient)
     uint8_t *out_buf = jpegItem.buf;
 
     int32_t now_sends = 0;
-    uint32_t packet_len = 1 * 1024;
+    uint32_t packet_len = 2 * 1024;
 
     while (to_sends > 0)
     {
@@ -1361,116 +1361,66 @@ void HTTP_UI()
   }
   EthernetClient httpClient = HttpUIServer.available();
   xSemaphoreGive(mutex_Eth_SocketOpen);
-  // M5_LOGI("mutex give");
 
-  if (httpClient)
+  if (!httpClient)
+    return;
+
+  M5_LOGI("new httpClient");
+
+  unsigned long readTimeout = 5u;
+  httpClient.setTimeout(readTimeout);
+
+  String currentLine = "";
+  currentLine.reserve(256u);
+  String requestedPageName = "";
+  requestedPageName.reserve(64u);
+  size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
+  bool getRequest = false;
+
+  while (httpClient.connected())
   {
-    // if (xSemaphoreTake(mutex_Eth_SocketOpen, portMAX_DELAY) == pdTRUE)
+    if (httpClient.available())
     {
-      // M5_LOGD("mutex take success");
+      currentLine = httpClient.readStringUntil('\n');
+      currentLine.replace("\r", "");
+      unsigned int currentLineLength = currentLine.length();
 
-      unsigned long millis0 = millis();
-      unsigned long millis1 = millis0;
-
-      // unsigned long millisStart = millis0;
-      unsigned long clientStart = millis0;
-
-      M5_LOGI("new httpClient");
-      boolean currentLineIsBlank = true;
-      boolean currentLineIsNotGetPost = false;
-      boolean currentLineHaveEnoughLength = false;
-
-      String currentLine = "";
-      String page = "";
-      bool getRequest = false;
-
-      size_t numPages = sizeof(pageHandlers) / sizeof(pageHandlers[0]);
-
-      unsigned long saveTimeout = httpClient.getTimeout();
-      M5_LOGI("default Timeout = %u", saveTimeout);
-      httpClient.setTimeout(1000);
-
-      unsigned long loopCount = 0;
-      unsigned long charCount = 0;
-
-      while (httpClient.connected())
+      if (currentLineLength == 0)//Final Line Reach
       {
-
-        loopCount++;
-        if (httpClient.available())
+        if (getRequest)
         {
-          char c = httpClient.read();
-          charCount++;
-
-          if (c == '\n' && currentLineIsBlank) // Request End Check ( request end line = "\r\n")
+          sendPage(httpClient, requestedPageName);
+        }
+        else
+        {
+          HTTP_UI_PAGE_notFound(httpClient);
+        }
+        M5_LOGD("break from request line end.");
+        break;
+      }
+      else //Line have contents
+      {
+        M5_LOGV("%s", currentLine.c_str());
+        if (currentLineLength > 6 && (currentLine.startsWith("GET /") || currentLine.startsWith("POST /")))
+        {
+          for (size_t i = 0; i < numPages; i++)
           {
-            // Request End task
-            if (getRequest)
+            String pageName = String(pageHandlers[i].page);
+            String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
+
+            if (currentLine.startsWith(CheckLine.c_str()))
             {
-              sendPage(httpClient, page);
-            }
-            else
-            {
-              HTTP_UI_PAGE_notFound(httpClient);
-            }
-            M5_LOGD("break from request line end.");
-            break;
-          }
-
-          if (c == '\n') // Line End
-          {
-            M5_LOGV("%s", currentLine.c_str());
-            currentLineIsBlank = true, currentLine = "";
-            currentLineIsNotGetPost = false;
-            currentLineHaveEnoughLength = false;
-            millis0 = millis();
-          }
-          else if (c != '\r') // Line have request char
-          {
-            currentLineIsBlank = false, currentLine += c;
-          }
-
-          if (!currentLineHaveEnoughLength && currentLine.length() > 6)
-          {
-            currentLineHaveEnoughLength = true;
-          }
-
-          if (!currentLineIsNotGetPost && currentLineHaveEnoughLength && (!currentLine.startsWith("GET /") && !currentLine.startsWith("POST /")))
-          {
-            currentLineIsNotGetPost = true;
-          }
-
-          if (currentLineHaveEnoughLength && !currentLineIsNotGetPost && !getRequest)
-          {
-            for (size_t i = 0; i < numPages; i++)
-            {
-              String pageName = String(pageHandlers[i].page);
-              String CheckLine = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? String("GET /") : String("POST /")) + pageName;
-
-              if (currentLine.startsWith(CheckLine.c_str()))
-              {
-                page = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
-                M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), page.c_str());
-                getRequest = true;
-                break;
-              }
+              requestedPageName = (pageHandlers[i].mode == HTTP_UI_MODE_GET ? CheckLine.substring(5) : CheckLine.substring(6));
+              M5_LOGI("currentLine = [%s] : CheckLine = [%s]: page = [%s]", currentLine.c_str(), CheckLine.c_str(), requestedPageName.c_str());
+              getRequest = true;
+              break;
             }
           }
         }
-
-        if (millis0 - millis1 >= 500)
-        {
-          M5_LOGE("Loop time Long ... [%s] : %u", currentLine.c_str(), millis0 - millis1);
-        }
-        millis1 = millis0;
-        delay(1);
       }
 
-      httpClient.setTimeout(saveTimeout);
-      httpClient.stop();
-
-      M5_LOGI("httpClient disconnected : httpClient alived time =  %u ms", millis() - clientStart);
-      M5_LOGI("loopCount =  %u ,charCount = %u", loopCount, charCount);
+      delay(1);
     }
   }
+  httpClient.stop();
 }

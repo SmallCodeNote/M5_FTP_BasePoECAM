@@ -250,10 +250,7 @@ uint16_t M5_Ethernet_FtpClient::GetCmdAnswer(char *result , int offsetStart )
     M5_LOGE("!ftpClient.available()");
     memset(outBuf, 0, sizeof(outBuf));
     strcpy(outBuf, "NoAnswer");
-
     //_isConnected = false;
-    // isConnected();
-    M5_LOGD("LOGIN and get ANSWER");
     return 0;
   }
 
@@ -734,6 +731,25 @@ uint16_t M5_Ethernet_FtpClient::RemoveDir(String dir)
 
 /////////////////////////////////////////////
 
+uint16_t M5_Ethernet_FtpClient::StoreFile(String fileName)
+{
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
+  if (!isConnected())
+  {
+    FTP_LOGERROR("StoreFile: Not connected error");
+    return FTP_RESCODE_CLIENT_ISNOT_CONNECTED;
+  }
+
+  FTP_LOGINFO("Send STOR");
+  ftpClient.print(FTP_COMMAND_FILE_UPLOAD);
+  ftpClient.println(fileName);
+  M5_LOGI();
+  responseCode = GetCmdAnswer();
+  M5_LOGI();
+  return responseCode;
+}
+/////////////////////////////////////////////
+
 uint16_t M5_Ethernet_FtpClient::AppendFile(String fileName)
 {
   uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
@@ -853,6 +869,30 @@ uint16_t M5_Ethernet_FtpClient::AppendData(String filePath, unsigned char *data,
     return responseCode;
 
   responseCode = AppendFile(filePath);
+  if (isErrorCode(responseCode))
+  {
+    responseCode = CloseDataClient();
+    return responseCode;
+  }
+
+  responseCode = WriteData(data, datalength);
+  if (isErrorCode(responseCode))
+    return responseCode;
+
+  responseCode = CloseDataClient();
+  return responseCode;
+}
+/////////////////////////////////////////////
+
+uint16_t M5_Ethernet_FtpClient::StoreData(String filePath, unsigned char *data, int datalength)
+{
+  uint16_t responseCode = FTP_RESCODE_ACTION_SUCCESS;
+
+  responseCode = InitAsciiPassiveMode();
+  if (isErrorCode(responseCode))
+    return responseCode;
+
+  responseCode = StoreFile(filePath);
   if (isErrorCode(responseCode))
   {
     responseCode = CloseDataClient();

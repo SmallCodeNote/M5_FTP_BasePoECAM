@@ -739,7 +739,6 @@ void DataSaveLoop_Jpeg(void *arg)
           if (xSemaphoreTake(mutex_Eth, (TickType_t)MUX_ETH_BLOCK_TIM) == pdTRUE)
           {
             // Create Directory
-
             if (directoryPath_Before != item.dirPath)
             {
               directoryPath_Before = item.dirPath;
@@ -750,7 +749,8 @@ void DataSaveLoop_Jpeg(void *arg)
             }
 
             responceTimeBase = millis();
-            responce = ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
+            //responce = ftp.AppendData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
+            responce = ftp.StoreData(String(item.filePath) + ".jpg", (u_char *)(item.buf), (int)(item.len));
             M5_LOGI("ftp res = %u :: %u", responce, millis() - responceTimeBase);
 
             xSemaphoreGive(mutex_Eth);
