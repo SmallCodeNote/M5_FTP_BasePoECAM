@@ -240,7 +240,6 @@ void HTTP_UI_PAGE_top(EthernetClient httpClient)
   httpClient.println("<a href=\"/configNetworkParam.html\">Config Network Parameter</a><br>");
   httpClient.println("<a href=\"/configIntervalParam.html\">Config Interval Parameter</a><br>");
   httpClient.println("<a href=\"/configCameraParam.html\">Config Camera Parameter</a><br>");
-  httpClient.println("<a href=\"/configChart.html\">Config Chart Parameter</a><br>");
   httpClient.println("<a href=\"/configTime.html\">Config Time</a><br>");
   httpClient.println("<a href=\"/configEdgeSearch.html\">Config EdgeSearch Parameter</a><br>");
 
@@ -588,14 +587,14 @@ void HTTP_UI_POSTPAGE_configIntervalParam(EthernetClient httpClient)
   httpClient.println("<form action=\"/configIntervalParam.html\" method=\"post\">");
   httpClient.println("<ul>");
 
-  HTML_PUT_LI_INPUT_WITH_COMMENT(imageBufferingEpochInterval,"1- (sec.)");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(imageBufferingEpochInterval, "1- (sec.)");
 
-  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpImageSaveInterval,"1- (sec.)");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpEdgeSaveInterval,"1- (sec.)");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpProfileSaveInterval,"1- (sec.)");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpImageSaveInterval, "1- (sec.)");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpEdgeSaveInterval, "1- (sec.)");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(ftpProfileSaveInterval, "1- (sec.)");
 
   HTML_PUT_LI_INPUT(chartShowPointCount);
-  HTML_PUT_LI_INPUT_WITH_COMMENT(chartUpdateInterval,"(msec.)");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(chartUpdateInterval, "(msec.)");
 
   httpClient.println("<li class=\"button\">");
   httpClient.println("<button type=\"submit\">Save</button>");
@@ -607,7 +606,6 @@ void HTTP_UI_POSTPAGE_configIntervalParam(EthernetClient httpClient)
   httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
 
   HTTP_UI_PART_HTMLFooter(httpClient);
-
 }
 
 void HTTP_UI_POSTPAGE_configNetworkParam(EthernetClient httpClient)
@@ -677,102 +675,6 @@ void HTTP_UI_POSTPAGE_configNetworkParam(EthernetClient httpClient)
   {
     xTaskCreatePinnedToCore(TaskRestart, "TaskRestart", 4096, NULL, 0, NULL, 1);
   }
-}
-
-/*void HTTP_UI_PAGE_configParam(EthernetClient httpClient)
-{
-  String pageTitle = "configParam";
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "config param");
-
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<h2>" + pageTitle + "</h2>");
-
-  httpClient.println("<form action=\"/configParamSuccess.html\" method=\"post\">");
-  httpClient.println("<ul>");
-
-  String currentLine = "";
-  HTML_PUT_LI_WIDEINPUT(deviceName);
-  HTML_PUT_LI_WIDEINPUT(deviceIP_String);
-  HTML_PUT_LI_WIDEINPUT(ntpSrvIP_String);
-  HTML_PUT_LI_WIDEINPUT(ftpSrvIP_String);
-  HTML_PUT_LI_WIDEINPUT(ftp_user);
-  HTML_PUT_LI_WIDEINPUT(ftp_pass);
-
-  HTML_PUT_LI_INPUT(imageBufferingEpochInterval);
-
-  HTML_PUT_LI_INPUT(ftpImageSaveInterval);
-  HTML_PUT_LI_INPUT(ftpEdgeSaveInterval);
-  HTML_PUT_LI_INPUT(ftpProfileSaveInterval);
-
-  HTML_PUT_LI_INPUT(chartShowPointCount);
-  HTML_PUT_LI_INPUT(chartUpdateInterval);
-
-  HTML_PUT_LI_INPUT(timeZoneOffset);
-  HTML_PUT_LI_INPUT(flashIntensityMode);
-  HTML_PUT_LI_INPUT(flashLength);
-
-  httpClient.println("<li class=\"button\">");
-  httpClient.println("<button type=\"submit\">Save and reboot</button>");
-  httpClient.println("</li>");
-  httpClient.println("</ul>");
-  httpClient.println("</form>");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}*/
-
-void HTTP_UI_POST_configParam(EthernetClient httpClient)
-{
-  String pageTitle = "configParam";
-  String currentLine = "";
-  // Load post data
-  while (httpClient.available())
-  {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
-  }
-
-  HTTP_GET_PARAM_FROM_POST(deviceName);
-  HTTP_GET_PARAM_FROM_POST(deviceIP_String);
-  HTTP_GET_PARAM_FROM_POST(ntpSrvIP_String);
-  HTTP_GET_PARAM_FROM_POST(ftpSrvIP_String);
-  HTTP_GET_PARAM_FROM_POST(ftp_user);
-  HTTP_GET_PARAM_FROM_POST(ftp_pass);
-
-  HTTP_GET_PARAM_FROM_POST(imageBufferingEpochInterval);
-
-  HTTP_GET_PARAM_FROM_POST(ftpImageSaveInterval);
-  HTTP_GET_PARAM_FROM_POST(ftpEdgeSaveInterval);
-  HTTP_GET_PARAM_FROM_POST(ftpProfileSaveInterval);
-
-  HTTP_GET_PARAM_FROM_POST(chartShowPointCount);
-  HTTP_GET_PARAM_FROM_POST(chartUpdateInterval);
-
-  HTTP_GET_PARAM_FROM_POST(timeZoneOffset);
-  HTTP_GET_PARAM_FROM_POST(flashIntensityMode);
-  HTTP_GET_PARAM_FROM_POST(flashLength);
-
-  PutEEPROM();
-
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "config param");
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
-  httpClient.println("SUCCESS PARAMETER UPDATE.");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-
-  xTaskCreatePinnedToCore(TaskRestart, "TaskRestart", 4096, NULL, 0, NULL, 1);
 }
 
 void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient)
@@ -917,203 +819,9 @@ void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient)
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-/*void HTTP_UI_PAGE_configCamera(EthernetClient httpClient)
+void HTTP_UI_POSTPAGE_configEdgeSearch(EthernetClient httpClient)
 {
-  String pageTitle = "configCamera";
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "config camera");
-
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<h2>" + pageTitle + "</h2>");
-
-  httpClient.println("<form action=\"/configCameraSuccess.html\" method=\"post\">");
-  httpClient.println("<ul>");
-
-  String currentLine = "";
-  HTML_PUT_LI_INPUT(flashIntensityMode);
-  HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength, "ms");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineStep, "px [0-]");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineRange, "%");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeSearchStart, "0-100%");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeSearchEnd, "0-100%");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineEdgeUp, "1: dark -> light / 2: light -> dark");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(pixLineThrethold, "0-765");
-
-  String optionString = " selected";
-  int pixformat_i = pixformat.toInt();
-
-  httpClient.println("<label for=\"pixformat\">Pixformat:</label>");
-  httpClient.println("<select id=\"pixformat\" name=\"pixformat\">");
-
-  httpClient.printf("<option value=\"%u\" %s>RGB565</option>", PIXFORMAT_RGB565, pixformat_i == PIXFORMAT_RGB565 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>YUV422</option>", PIXFORMAT_YUV422, pixformat_i == PIXFORMAT_YUV422 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>YUV420</option>", PIXFORMAT_YUV420, pixformat_i == PIXFORMAT_YUV420 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>Grayscale</option>", PIXFORMAT_GRAYSCALE, pixformat_i == PIXFORMAT_GRAYSCALE ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>JPEG</option>", PIXFORMAT_JPEG, pixformat_i == PIXFORMAT_JPEG ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>RGB888</option>", PIXFORMAT_RGB888, pixformat_i == PIXFORMAT_RGB888 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>RAW</option>", PIXFORMAT_RAW, pixformat_i == PIXFORMAT_RAW ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>RGB444</option>", PIXFORMAT_RGB444, pixformat_i == PIXFORMAT_RGB444 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>RGB555</option>", PIXFORMAT_RGB555, pixformat_i == PIXFORMAT_RGB555 ? "selected" : "");
-
-  httpClient.println("</select><br>");
-
-  int framesize_i = framesize.toInt();
-
-  httpClient.println("<label for=\"framesize\">Framesize:</label>");
-  httpClient.println("<select id=\"framesize\" name=\"framesize\">");
-
-  httpClient.printf("<option value=\"%u\" %s>96x96</option>", FRAMESIZE_96X96, framesize_i == FRAMESIZE_96X96 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>160x120</option>", FRAMESIZE_QQVGA, framesize_i == FRAMESIZE_QQVGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>176x144</option>", FRAMESIZE_QCIF, framesize_i == FRAMESIZE_QCIF ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>240x176</option>", FRAMESIZE_HQVGA, framesize_i == FRAMESIZE_HQVGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>240x240</option>", FRAMESIZE_240X240, framesize_i == FRAMESIZE_240X240 ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>320x240</option>", FRAMESIZE_QVGA, framesize_i == FRAMESIZE_QVGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>400x296</option>", FRAMESIZE_CIF, framesize_i == FRAMESIZE_CIF ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>480x320</option>", FRAMESIZE_HVGA, framesize_i == FRAMESIZE_HVGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>640x480</option>", FRAMESIZE_VGA, framesize_i == FRAMESIZE_VGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>800x600</option>", FRAMESIZE_SVGA, framesize_i == FRAMESIZE_SVGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1024x768</option>", FRAMESIZE_XGA, framesize_i == FRAMESIZE_XGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1280x720</option>", FRAMESIZE_HD, framesize_i == FRAMESIZE_HD ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1280x1024</option>", FRAMESIZE_SXGA, framesize_i == FRAMESIZE_SXGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1600x1200</option>", FRAMESIZE_UXGA, framesize_i == FRAMESIZE_UXGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1920x1080</option>", FRAMESIZE_FHD, framesize_i == FRAMESIZE_FHD ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>720x1280</option>", FRAMESIZE_P_HD, framesize_i == FRAMESIZE_P_HD ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>864x1536</option>", FRAMESIZE_P_3MP, framesize_i == FRAMESIZE_P_3MP ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>2048x1536</option>", FRAMESIZE_QXGA, framesize_i == FRAMESIZE_QXGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>2560x1440</option>", FRAMESIZE_QHD, framesize_i == FRAMESIZE_QHD ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>2560x1600</option>", FRAMESIZE_WQXGA, framesize_i == FRAMESIZE_WQXGA ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>1080x1920</option>", FRAMESIZE_P_FHD, framesize_i == FRAMESIZE_P_FHD ? "selected" : "");
-  httpClient.printf("<option value=\"%u\" %s>2560x1920</option>", FRAMESIZE_QSXGA, framesize_i == FRAMESIZE_QSXGA ? "selected" : "");
-
-  httpClient.println("</select><br>");
-
-  HTML_PUT_LI_INPUT_WITH_COMMENT(contrast, "-2 - 2");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(brightness, "-2 - 2");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(saturation, "-2 - 2");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(sharpness, "-2 - 2");
-  HTML_PUT_LI_INPUT(denoise);
-  HTML_PUT_LI_INPUT_WITH_COMMENT(quality, "0 - 63");
-  HTML_PUT_LI_INPUT(colorbar);
-  HTML_PUT_LI_INPUT(whitebal);
-  HTML_PUT_LI_INPUT_WITH_COMMENT(gain_ctrl, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(exposure_ctrl, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(hmirror, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(vflip, "0 | 1");
-
-  HTML_PUT_LI_INPUT_WITH_COMMENT(aec2, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(awb_gain, "0 | 1");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(agc_gain, "0 - 30");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(aec_value, "0 - 1200");
-
-  HTML_PUT_LI_INPUT_WITH_COMMENT(special_effect, "0 - 6");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(wb_mode, "0 - 4");
-  HTML_PUT_LI_INPUT_WITH_COMMENT(ae_level, "-2 - 2");
-
-
-  //  HTML_PUT_LI_INPUT_WITH_COMMENT(dcw, "0 | 1");
-  //  HTML_PUT_LI_INPUT_WITH_COMMENT(bpc, "0 | 1");
-  //  HTML_PUT_LI_INPUT_WITH_COMMENT(wpc, "0 | 1");
-
-  //  HTML_PUT_LI_INPUT_WITH_COMMENT(raw_gma, "0 | 1");
-  //  HTML_PUT_LI_INPUT_WITH_COMMENT(lenc, "0 | 1");
-
-  //  HTML_PUT_LI_INPUT(get_reg);
-  //  HTML_PUT_LI_INPUT(set_reg);
-  //  HTML_PUT_LI_INPUT(set_res_raw);
-  //  HTML_PUT_LI_INPUT(set_pll);
-  //  HTML_PUT_LI_INPUT(set_xclk);
-
-
-  httpClient.println("<li class=\"button\">");
-  httpClient.println("<button type=\"submit\">Save</button>");
-  httpClient.println("</li>");
-  httpClient.println("</ul>");
-  httpClient.println("</form>");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}*/
-
-void HTTP_UI_POST_configCamera(EthernetClient httpClient)
-{
-  String pageTitle = "configCamera";
-  String currentLine = "";
-  // Load post data
-  while (httpClient.available())
-  {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
-  }
-
-  HTTP_GET_PARAM_FROM_POST(flashIntensityMode);
-  HTTP_GET_PARAM_FROM_POST(flashLength);
-
-  HTTP_GET_PARAM_FROM_POST(pixLineStep);
-  HTTP_GET_PARAM_FROM_POST(pixLineRange);
-
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchStart);
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchEnd);
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeUp);
-  HTTP_GET_PARAM_FROM_POST(pixLineThrethold);
-
-  HTTP_GET_PARAM_FROM_POST(pixformat);
-  HTTP_GET_PARAM_FROM_POST(framesize);
-  HTTP_GET_PARAM_FROM_POST(vflip);
-  HTTP_GET_PARAM_FROM_POST(hmirror);
-  HTTP_GET_PARAM_FROM_POST(gain_ctrl);
-  HTTP_GET_PARAM_FROM_POST(exposure_ctrl);
-  HTTP_GET_PARAM_FROM_POST(denoise);
-
-  HTTP_GET_PARAM_FROM_POST(contrast);
-  HTTP_GET_PARAM_FROM_POST(brightness);
-  HTTP_GET_PARAM_FROM_POST(saturation);
-  HTTP_GET_PARAM_FROM_POST(sharpness);
-  HTTP_GET_PARAM_FROM_POST(gainceiling);
-  HTTP_GET_PARAM_FROM_POST(quality);
-  HTTP_GET_PARAM_FROM_POST(colorbar);
-  HTTP_GET_PARAM_FROM_POST(whitebal);
-  HTTP_GET_PARAM_FROM_POST(aec2);
-  HTTP_GET_PARAM_FROM_POST(awb_gain);
-  HTTP_GET_PARAM_FROM_POST(agc_gain);
-  HTTP_GET_PARAM_FROM_POST(aec_value);
-  HTTP_GET_PARAM_FROM_POST(special_effect);
-  HTTP_GET_PARAM_FROM_POST(wb_mode);
-  HTTP_GET_PARAM_FROM_POST(ae_level);
-
-  // HTTP_GET_PARAM_FROM_POST(dcw);
-  // HTTP_GET_PARAM_FROM_POST(bpc);
-  // HTTP_GET_PARAM_FROM_POST(wpc);
-  // HTTP_GET_PARAM_FROM_POST(raw_gma);
-  // HTTP_GET_PARAM_FROM_POST(lenc);
-  // HTTP_GET_PARAM_FROM_POST(get_reg);
-  // HTTP_GET_PARAM_FROM_POST(set_reg);
-  // HTTP_GET_PARAM_FROM_POST(set_res_raw);
-  // HTTP_GET_PARAM_FROM_POST(set_pll);
-  // HTTP_GET_PARAM_FROM_POST(set_xclk);
-
-  PutEEPROM();
-  CameraSensorFullSetupFromStoreData();
-
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "config camera");
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
-  httpClient.println("SUCCESS PARAMETER UPDATE.<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-  httpClient.printf("<a href=\"http://%s/configCamera.html\">Return Config Camera Page</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}
-
-void HTTP_UI_POSTPAGE_configChart(EthernetClient httpClient)
-{
-  String pageTitle = "configChart";
+  String pageTitle = "config Edge Search";
   // POST LOAD ==============
   String currentLine = "";
   httpClient.setTimeout(5u);
@@ -1125,8 +833,20 @@ void HTTP_UI_POSTPAGE_configChart(EthernetClient httpClient)
   M5_LOGV("POST %u :: [%s]", currentLineLength, currentLine.c_str());
   if (currentLineLength > 1)
   {
-    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartShowPointCount);
-    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartUpdateInterval);
+    //HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartShowPointCount);
+    //HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartUpdateInterval);
+
+
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineStep);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineRange);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineAngle);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineShiftUp);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineSideWidth);
+
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchStart);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchEnd);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeUp);
+  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineThrethold);
 
     PutEEPROM();
   }
@@ -1142,132 +862,6 @@ void HTTP_UI_POSTPAGE_configChart(EthernetClient httpClient)
   {
     httpClient.printf("Last Update <br /> %s", NtpClient.convertTimeEpochToString().c_str());
   }
-
-  httpClient.println("<form action=\"/configChart.html\" method=\"post\">");
-  httpClient.println("<ul>");
-
-  HTML_PUT_LI_INPUT(chartShowPointCount);
-  HTML_PUT_LI_INPUT(chartUpdateInterval);
-
-  httpClient.println("<li class=\"button\">");
-  httpClient.println("<button type=\"submit\">Save</button>");
-  httpClient.println("</li>");
-  httpClient.println("</ul>");
-  httpClient.println("</form>");
-
-  httpClient.println("<br />");
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-}
-
-void HTTP_UI_POST_configEdgeSearch(EthernetClient httpClient)
-{
-  String pageTitle = "";
-  String currentLine = "";
-  // Load post data
-  while (httpClient.available())
-  {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
-  }
-
-  M5_LOGV("%s", currentLine.c_str());
-
-  HTTP_GET_PARAM_FROM_POST(pixLineStep);
-  HTTP_GET_PARAM_FROM_POST(pixLineRange);
-  HTTP_GET_PARAM_FROM_POST(pixLineAngle);
-  HTTP_GET_PARAM_FROM_POST(pixLineShiftUp);
-  HTTP_GET_PARAM_FROM_POST(pixLineSideWidth);
-
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchStart);
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeSearchEnd);
-  HTTP_GET_PARAM_FROM_POST(pixLineEdgeUp);
-  HTTP_GET_PARAM_FROM_POST(pixLineThrethold);
-
-  M5_LOGI("===== Posted info =====");
-  M5_LOGI("pixLineStep : %s", pixLineStep.c_str());
-  M5_LOGI("pixLineRange : %s", pixLineRange.c_str());
-  M5_LOGI("pixLineAngle : %s", pixLineAngle.c_str());
-  M5_LOGI("pixLineShiftUp : %s", pixLineShiftUp.c_str());
-  M5_LOGI("pixLineSideWidth : %s", pixLineSideWidth.c_str());
-  M5_LOGI("pixLineEdgeSearchStart : %s", pixLineEdgeSearchStart.c_str());
-  M5_LOGI("pixLineEdgeSearchEnd : %s", pixLineEdgeSearchEnd.c_str());
-  M5_LOGI("pixLineEdgeUp : %s", pixLineEdgeUp.c_str());
-  M5_LOGI("pixLineThrethold : %s", pixLineThrethold.c_str());
-
-  bool haveToSave = true;
-  if (pixLineStep.length() < 1)
-  {
-    pixLineStep = String(storeData.pixLineStep);
-    haveToSave = false;
-  }
-  if (pixLineRange.length() < 1)
-  {
-    pixLineRange = String(storeData.pixLineRange);
-    haveToSave = false;
-  }
-  if (pixLineAngle.length() < 1)
-  {
-    pixLineAngle = String(storeData.pixLineAngle);
-    haveToSave = false;
-  }
-  if (pixLineShiftUp.length() < 1)
-  {
-    pixLineShiftUp = String(storeData.pixLineShiftUp);
-    haveToSave = false;
-  }
-  if (pixLineSideWidth.length() < 1)
-  {
-    pixLineSideWidth = String(storeData.pixLineSideWidth);
-    haveToSave = false;
-  }
-  if (pixLineEdgeSearchStart.length() < 1)
-  {
-    pixLineEdgeSearchStart = String(storeData.pixLineEdgeSearchStart);
-    haveToSave = false;
-  }
-  if (pixLineEdgeSearchEnd.length() < 1)
-  {
-    pixLineEdgeSearchEnd = String(storeData.pixLineEdgeSearchEnd);
-    haveToSave = false;
-  }
-  if (pixLineEdgeUp.length() < 1)
-  {
-    pixLineEdgeUp = String(storeData.pixLineEdgeUp);
-    haveToSave = false;
-  }
-  if (pixLineThrethold.length() < 1)
-  {
-    pixLineThrethold = String(storeData.pixLineThrethold);
-    haveToSave = false;
-  }
-
-  M5_LOGI("===== Fill brank =====");
-  M5_LOGI("pixLineStep : %s", pixLineStep.c_str());
-  M5_LOGI("pixLineRange : %s", pixLineRange.c_str());
-  M5_LOGI("pixLineAngle : %s", pixLineAngle.c_str());
-  M5_LOGI("pixLineShiftUp : %s", pixLineShiftUp.c_str());
-  M5_LOGI("pixLineSideWidth : %s", pixLineSideWidth.c_str());
-  M5_LOGI("pixLineEdgeSearchStart : %s", pixLineEdgeSearchStart.c_str());
-  M5_LOGI("pixLineEdgeSearchEnd : %s", pixLineEdgeSearchEnd.c_str());
-  M5_LOGI("pixLineEdgeUp : %s", pixLineEdgeUp.c_str());
-  M5_LOGI("pixLineThrethold : %s", pixLineThrethold.c_str());
-
-  if (haveToSave)
-  {
-    M5_LOGV("PutEEPROM();");
-    PutEEPROM();
-  }
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "config edge search");
-
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<form action=\"/configEdgeSearch.html\" method=\"post\">");
   httpClient.println("<ul>");
@@ -1294,9 +888,30 @@ void HTTP_UI_POST_configEdgeSearch(EthernetClient httpClient)
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
+void HTTP_UI_POSTPAGE_configTime(EthernetClient httpClient)
 {
-  String pageTitle = "";
+  String pageTitle = "config Time";
+
+  // POST LOAD ==============
+  String currentLine = "";
+  String timeString = "";
+  httpClient.setTimeout(5u);
+  while (httpClient.available())
+  {
+    currentLine = httpClient.readStringUntil('\n');
+  }
+  unsigned int currentLineLength = currentLine.length();
+  M5_LOGV("POST %u :: [%s]", currentLineLength, currentLine.c_str());
+  if (currentLineLength > 1)
+  {
+    HTTP_GET_PARAM_FROM_POST(timeString);
+
+    timeString = urlDecode(timeString);
+    M5_LOGI("posted timeString = %s", timeString.c_str());
+    NtpClient.updateTimeFromString(timeString);
+  }
+
+  // GET RETURN ==============
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
   HTTP_UI_PART_HTMLHeader(httpClient, "config time");
 
@@ -1307,11 +922,9 @@ void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
   httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
   httpClient.println("</ul>");
 
-  httpClient.println("<form action=\"/configTimeSuccess.html\" method=\"post\">");
+  httpClient.println("<form action=\"/configTime.html\" method=\"post\">");
   httpClient.println("<ul>");
 
-  String currentLine = "";
-  String timeString = "";
   HTML_PUT_LI_WIDEINPUT(timeString);
 
   httpClient.println("<li class=\"button\">");
@@ -1350,6 +963,7 @@ void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
+
 void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
 {
   String pageTitle = "unitTime";
@@ -1383,59 +997,6 @@ void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
   httpClient.println("</script>");
 
   HTTP_UI_PART_HTMLFooter(httpClient);
-}
-void HTTP_UI_POST_configTime(EthernetClient httpClient)
-{
-  String pageTitle = "configTime";
-  String currentLine = "";
-  String timeString = "";
-  // Load post data
-  while (httpClient.available())
-  {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
-  }
-  HTTP_GET_PARAM_FROM_POST(timeString);
-
-  timeString = urlDecode(timeString);
-  M5_LOGI("posted timeString = %s", timeString.c_str());
-  NtpClient.updateTimeFromString(timeString);
-
-  HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, pageTitle);
-  httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<h2>" + pageTitle + "</h2>");
-
-  httpClient.println("SUCCESS TIME UPDATE.");
-
-  httpClient.println("<ul id=\"unitTime\">");
-  httpClient.println("<li>unitTime: <span id=\"unitTime\"></span></li>");
-  httpClient.println("</ul>");
-
-  httpClient.printf("<a href=\"http://%s/top.html\">Return Top</a><br>", deviceIP_String.c_str());
-
-  httpClient.println("<script>");
-  httpClient.println("function fetchData() {");
-  httpClient.println("  var xhr = new XMLHttpRequest();");
-  httpClient.println("  xhr.onreadystatechange = function() {");
-  httpClient.println("    if (xhr.readyState == 4 && xhr.status == 200) {");
-  httpClient.println("      var data = JSON.parse(xhr.responseText);");
-  httpClient.println("      document.getElementById('unitTime').innerText = data.unitTime;");
-  httpClient.println("    }");
-  httpClient.println("  };");
-  httpClient.println("  xhr.open('GET', '/unitTimeNow.json', true);");
-  httpClient.println("  xhr.send();");
-  httpClient.println("}");
-  httpClient.println("setInterval(fetchData, 1000);");
-  httpClient.println("fetchData();");
-  httpClient.println("</script>");
-
-  HTTP_UI_PART_HTMLFooter(httpClient);
-  return;
 }
 
 void HTTP_UI_POSTPAGE_flashSwitch(EthernetClient httpClient)
@@ -1492,7 +1053,7 @@ void HTTP_UI_POSTPAGE_flashSwitch(EthernetClient httpClient)
 
   String optionString = " selected";
 
-  httpClient.println("<label for=\"flashBrightnessStatus\">Brightness:</label>");
+  httpClient.println("<li><label for=\"flashBrightnessStatus\">Brightness:</label>");
   httpClient.println("<select id=\"flashBrightnessStatus\" name=\"flashBrightnessStatus\">");
 
   httpClient.printf("<option value=\"%d\" %s>Flashlight off</option>", 0, brightness_u == 0 ? "selected" : "");
@@ -1513,7 +1074,7 @@ void HTTP_UI_POSTPAGE_flashSwitch(EthernetClient httpClient)
   httpClient.printf("<option value=\"%d\" %s>40%% brightness + 1.3s</option>", 15, brightness_u == 15 ? "selected" : "");
   httpClient.printf("<option value=\"%d\" %s>30%% brightness + 1.3s</option>", 16, brightness_u == 16 ? "selected" : "");
 
-  httpClient.println("</select><br>");
+  httpClient.println("</select></li>");
 
   httpClient.println("<li class=\"button\">");
   httpClient.println("<button type=\"submit\">Save and Flash</button>");
@@ -1582,17 +1143,14 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "configCameraParam.html", HTTP_UI_POSTPAGE_configCameraParam},
     {HTTP_UI_MODE_POST, "configCameraParam.html", HTTP_UI_POSTPAGE_configCameraParam},
 
-    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_POSTPAGE_configChart},
-    {HTTP_UI_MODE_POST, "configChart.html", HTTP_UI_POSTPAGE_configChart},
-
     {HTTP_UI_MODE_GET, "flashSwitch.html", HTTP_UI_POSTPAGE_flashSwitch},
     {HTTP_UI_MODE_POST, "flashSwitch.html", HTTP_UI_POSTPAGE_flashSwitch},
 
-    {HTTP_UI_MODE_GET, "configEdgeSearch.html", HTTP_UI_POST_configEdgeSearch},
-    {HTTP_UI_MODE_POST, "configEdgeSearch.html", HTTP_UI_POST_configEdgeSearch},
+    {HTTP_UI_MODE_GET, "configEdgeSearch.html", HTTP_UI_POSTPAGE_configEdgeSearch},
+    {HTTP_UI_MODE_POST, "configEdgeSearch.html", HTTP_UI_POSTPAGE_configEdgeSearch},
 
-    {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
-    {HTTP_UI_MODE_POST, "configTimeSuccess.html", HTTP_UI_POST_configTime},
+    {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_POSTPAGE_configTime},
+    {HTTP_UI_MODE_POST, "configTime.html", HTTP_UI_POSTPAGE_configTime},
 
     {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
     {HTTP_UI_MODE_GET, " ", HTTP_UI_PAGE_top} // default handler

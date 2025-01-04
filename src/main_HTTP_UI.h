@@ -149,23 +149,14 @@ void HTTP_UI_PAGE_notFound(EthernetClient httpClient);
 
 void HTTP_UI_POSTPAGE_configNetworkParam(EthernetClient httpClient);
 void HTTP_UI_POSTPAGE_configIntervalParam(EthernetClient httpClient);
-
-//void HTTP_UI_PAGE_configParam(EthernetClient httpClient);
-//void HTTP_UI_POST_configParam(EthernetClient httpClient);
-
 void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient);
-
-//void HTTP_UI_PAGE_configCamera(EthernetClient httpClient);
-//void HTTP_UI_POST_configCamera(EthernetClient httpClient);
+void HTTP_UI_POSTPAGE_flashSwitch(EthernetClient httpClient);
+void HTTP_UI_POSTPAGE_configTime(EthernetClient httpClient);
 
 void HTTP_UI_PAGE_configChart(EthernetClient httpClient);
 void HTTP_UI_POST_configChart(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configTime(EthernetClient httpClient);
-void HTTP_UI_POST_configTime(EthernetClient httpClient);
-
 void HTTP_UI_PAGE_unitTime(EthernetClient httpClient);
-void HTTP_UI_POST_configTime(EthernetClient httpClient);
 
 String urlDecode(String input);
 void TaskRestart(void *arg);
