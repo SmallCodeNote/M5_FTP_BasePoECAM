@@ -18,10 +18,22 @@ void HTTP_UI_PART_ResponceHeader(EthernetClient httpClient, String Content_Type)
   httpClient.println();
 }
 
-void HTTP_UI_PART_HTMLHeader(EthernetClient httpClient)
+void HTTP_UI_PART_HTMLHeader(EthernetClient httpClient, String title)
 {
   httpClient.println("<!DOCTYPE HTML>");
   httpClient.println("<html>");
+  httpClient.println("<head>");
+  httpClient.println("<title>" + title + "</title>");
+  httpClient.println("<style>");
+  httpClient.println("h1 {padding: 0.0em 0.5em;color: #494949;background: #f4f4f4;border-left: solid 8px #2d8fdd;border-bottom: solid 3px #d7d7d7;}");
+  httpClient.println("h2 {padding: 0.0em 0.5em;border-left: solid 8px #2d8fdd;}");
+  httpClient.println("h3 {padding: 0.0em 0.5em;border-left: solid 8px #2d8fdd;}");
+  httpClient.println("ul,ol {padding:0.0em 1.5em; position:relative;}");
+  httpClient.println("ul li, ol li {display: flex;color: #2d8fdd;border-left:solid 6px #2d8fdd;background: #f1f8ff; margin-bottom: 3px;line-height: 1.5;padding: 0.0em 0.5em;list-style-type: none!important;}");
+  httpClient.println("label {flex: 0 0 150px; margin-right: 20px;}");
+  httpClient.println("input {flex: 0 0 50px; margin-right: 20px;text-align: right;}");
+  httpClient.println("</style>");
+  httpClient.println("</head>");
   httpClient.println("<body>");
 }
 
@@ -211,8 +223,9 @@ client_exit:
 
 void HTTP_UI_PAGE_top(EthernetClient httpClient)
 {
+  String pageTitle = "top";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "TOP");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<a href=\"/capture.jpg\">Stream</a><br>");
@@ -247,11 +260,12 @@ void HTTP_UI_PAGE_top(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_view(EthernetClient httpClient)
 {
+  String pageTitle = "view";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "VIEW");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<ul id=\"sensorData\">");
   httpClient.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
@@ -292,8 +306,9 @@ void HTTP_UI_PAGE_view(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
 {
+  String pageTitle = "cameraLineView";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "cameraLineView");
 
   httpClient.println("<h1>Camera Line View</h1>");
 
@@ -444,11 +459,12 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_chart(EthernetClient httpClient)
 {
+  String pageTitle = "chart";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "chart");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<ul id=\"sensorData\">");
   httpClient.println("<li>Distance: <span id=\"distance\"></span> mm</li>");
@@ -516,12 +532,13 @@ void HTTP_UI_PAGE_chart(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_notFound(EthernetClient httpClient)
 {
+  String pageTitle = "notFound";
   httpClient.println("HTTP/1.1 404 Not Found");
   httpClient.println("Content-Type: text/html");
   httpClient.println("Connection: close");
   httpClient.println();
 
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "404 not found");
 
   httpClient.println("<h1>404 Not Found</h1>");
 
@@ -530,11 +547,12 @@ void HTTP_UI_PAGE_notFound(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_configParam(EthernetClient httpClient)
 {
+  String pageTitle = "configParam";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config param");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<form action=\"/configParamSuccess.html\" method=\"post\">");
   httpClient.println("<ul>");
@@ -574,6 +592,7 @@ void HTTP_UI_PAGE_configParam(EthernetClient httpClient)
 
 void HTTP_UI_POST_configParam(EthernetClient httpClient)
 {
+  String pageTitle = "configParam";
   String currentLine = "";
   // Load post data
   while (httpClient.available())
@@ -609,7 +628,7 @@ void HTTP_UI_POST_configParam(EthernetClient httpClient)
   PutEEPROM();
 
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config param");
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<br />");
   httpClient.println("SUCCESS PARAMETER UPDATE.");
@@ -624,11 +643,12 @@ void HTTP_UI_POST_configParam(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_configCamera(EthernetClient httpClient)
 {
+  String pageTitle = "configCamera";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config camera");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<form action=\"/configCameraSuccess.html\" method=\"post\">");
   httpClient.println("<ul>");
@@ -742,6 +762,7 @@ void HTTP_UI_PAGE_configCamera(EthernetClient httpClient)
 
 void HTTP_UI_POST_configCamera(EthernetClient httpClient)
 {
+  String pageTitle = "configCamera";
   String currentLine = "";
   // Load post data
   while (httpClient.available())
@@ -806,7 +827,7 @@ void HTTP_UI_POST_configCamera(EthernetClient httpClient)
   CameraSensorFullSetupFromStoreData();
 
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config camera");
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<br />");
   httpClient.println("SUCCESS PARAMETER UPDATE.<br />");
@@ -816,12 +837,12 @@ void HTTP_UI_POST_configCamera(EthernetClient httpClient)
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
 
-void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
+void HTTP_UI_POSTPAGE_configChart(EthernetClient httpClient)
 {
-  // POST
+  String pageTitle = "configChart";
+  // POST LOAD ==============
   String currentLine = "";
   httpClient.setTimeout(5u);
-  // Load post data
   while (httpClient.available())
   {
     currentLine = httpClient.readStringUntil('\n');
@@ -836,12 +857,12 @@ void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
     PutEEPROM();
   }
 
-  // GET
+  // GET RETURN ==============
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, pageTitle);
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   if (currentLineLength > 1)
   {
@@ -868,6 +889,7 @@ void HTTP_UI_PAGE_configChart(EthernetClient httpClient)
 
 void HTTP_UI_POST_configEdgeSearch(EthernetClient httpClient)
 {
+  String pageTitle = "";
   String currentLine = "";
   // Load post data
   while (httpClient.available())
@@ -968,10 +990,10 @@ void HTTP_UI_POST_configEdgeSearch(EthernetClient httpClient)
     PutEEPROM();
   }
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config edge search");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<form action=\"/configEdgeSearch.html\" method=\"post\">");
   httpClient.println("<ul>");
@@ -1000,8 +1022,9 @@ void HTTP_UI_POST_configEdgeSearch(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
 {
+  String pageTitle = "";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "config time");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<br />");
@@ -1055,8 +1078,9 @@ void HTTP_UI_PAGE_configTime(EthernetClient httpClient)
 
 void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
 {
+  String pageTitle = "unitTime";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, "unit time");
 
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<br />");
@@ -1088,6 +1112,7 @@ void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
 }
 void HTTP_UI_POST_configTime(EthernetClient httpClient)
 {
+  String pageTitle = "configTime";
   String currentLine = "";
   String timeString = "";
   // Load post data
@@ -1107,9 +1132,10 @@ void HTTP_UI_POST_configTime(EthernetClient httpClient)
   NtpClient.updateTimeFromString(timeString);
 
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, pageTitle);
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
+
   httpClient.println("SUCCESS TIME UPDATE.");
 
   httpClient.println("<ul id=\"unitTime\">");
@@ -1138,19 +1164,18 @@ void HTTP_UI_POST_configTime(EthernetClient httpClient)
   return;
 }
 
-void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
+void HTTP_UI_POSTPAGE_flashSwitch(EthernetClient httpClient)
 {
+  String pageTitle = "flashSwitch";
+  // POST LOAD ==============
   String currentLine = "";
-  // Load post data
+  httpClient.setTimeout(5u);
   while (httpClient.available())
   {
-    char c = httpClient.read();
-    if (c == '\n' && currentLine.length() == 0)
-    {
-      break;
-    }
-    currentLine += c;
+    currentLine = httpClient.readStringUntil('\n');
   }
+  unsigned int currentLineLength = currentLine.length();
+  M5_LOGV("POST %u :: [%s]", currentLineLength, currentLine.c_str());
 
   String flashBrightnessStatus = flashIntensityMode;
   String flashTestLength = flashLength;
@@ -1177,11 +1202,12 @@ void HTTP_UI_PAGE_flashSwitch(EthernetClient httpClient)
   storeData.flashLength = flashTestLength_u;
   delay(storeData.imageBufferingEpochInterval);
 
+  // GET RETURN ==============
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient);
+  HTTP_UI_PART_HTMLHeader(httpClient, pageTitle);
 
   httpClient.println("<h1>" + deviceName + "</h1>");
-  httpClient.println("<br />");
+  httpClient.println("<h2>" + pageTitle + "</h2>");
 
   httpClient.println("<form action=\"/flashSwitch.html\" method=\"post\">");
   httpClient.println("<ul>");
@@ -1271,24 +1297,27 @@ PageHandler pageHandlers[] = {
     {HTTP_UI_MODE_GET, "chart.html", HTTP_UI_PAGE_chart},
     {HTTP_UI_MODE_GET, "cameraLineView.html", HTTP_UI_PAGE_cameraLineView},
     {HTTP_UI_MODE_GET, "capture.jpg", HTTP_UI_STREAM_JPEG},
-    {HTTP_UI_MODE_GET, "configParam.html", HTTP_UI_PAGE_configParam},
-    {HTTP_UI_MODE_GET, "configCamera.html", HTTP_UI_PAGE_configCamera},
-    {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
     {HTTP_UI_MODE_GET, "unitTime.html", HTTP_UI_PAGE_unitTime},
 
-    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_PAGE_configChart},
-    {HTTP_UI_MODE_POST, "configChart.html", HTTP_UI_PAGE_configChart},
+    {HTTP_UI_MODE_GET, "configChart.html", HTTP_UI_POSTPAGE_configChart},
+    {HTTP_UI_MODE_POST, "configChart.html", HTTP_UI_POSTPAGE_configChart},
 
-    {HTTP_UI_MODE_GET, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
-    {HTTP_UI_MODE_POST, "flashSwitch.html", HTTP_UI_PAGE_flashSwitch},
+    {HTTP_UI_MODE_GET, "flashSwitch.html", HTTP_UI_POSTPAGE_flashSwitch},
+    {HTTP_UI_MODE_POST, "flashSwitch.html", HTTP_UI_POSTPAGE_flashSwitch},
 
     {HTTP_UI_MODE_GET, "configEdgeSearch.html", HTTP_UI_POST_configEdgeSearch},
     {HTTP_UI_MODE_POST, "configEdgeSearch.html", HTTP_UI_POST_configEdgeSearch},
 
-    {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
+    {HTTP_UI_MODE_GET, "configParam.html", HTTP_UI_PAGE_configParam},
     {HTTP_UI_MODE_POST, "configParamSuccess.html", HTTP_UI_POST_configParam},
+
+    {HTTP_UI_MODE_GET, "configCamera.html", HTTP_UI_PAGE_configCamera},
     {HTTP_UI_MODE_POST, "configCameraSuccess.html", HTTP_UI_POST_configCamera},
+
+    {HTTP_UI_MODE_GET, "configTime.html", HTTP_UI_PAGE_configTime},
     {HTTP_UI_MODE_POST, "configTimeSuccess.html", HTTP_UI_POST_configTime},
+
+    {HTTP_UI_MODE_GET, "top.html", HTTP_UI_PAGE_top},
     {HTTP_UI_MODE_GET, " ", HTTP_UI_PAGE_top} // default handler
 };
 
