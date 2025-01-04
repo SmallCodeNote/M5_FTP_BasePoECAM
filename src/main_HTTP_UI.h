@@ -34,6 +34,24 @@
     }                                                                                    \
   }
 
+#define HTTP_GET_PARAM_FROM_POST_OR_STORESTRING(paramName)                                 \
+  {                                                                                      \
+    int start##paramName = currentLine.indexOf(#paramName "=") + strlen(#paramName "="); \
+    int end##paramName = currentLine.indexOf("&", start##paramName);                     \
+    if (end##paramName == -1)                                                            \
+    {                                                                                    \
+      end##paramName = currentLine.length();                                             \
+    }                                                                                    \
+    if (end##paramName < 1)                                                              \
+    {                                                                                    \
+      paramName = String(paramName);                                           \
+    }                                                                                    \
+    else                                                                                 \
+    {                                                                                    \
+      paramName = currentLine.substring(start##paramName, end##paramName);               \
+    }                                                                                    \
+  }
+
 #define HTML_PUT_INFOWITHLABEL(labelString) \
   httpClient.print(#labelString ": ");      \
   httpClient.print(labelString);            \
@@ -129,11 +147,16 @@ void HTTP_UI_PAGE_cameraLineView(EthernetClient httpClient);
 void HTTP_UI_PAGE_chart(EthernetClient httpClient);
 void HTTP_UI_PAGE_notFound(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configParam(EthernetClient httpClient);
-void HTTP_UI_POST_configParam(EthernetClient httpClient);
+void HTTP_UI_POSTPAGE_configNetworkParam(EthernetClient httpClient);
+void HTTP_UI_POSTPAGE_configIntervalParam(EthernetClient httpClient);
 
-void HTTP_UI_PAGE_configCamera(EthernetClient httpClient);
-void HTTP_UI_POST_configCamera(EthernetClient httpClient);
+//void HTTP_UI_PAGE_configParam(EthernetClient httpClient);
+//void HTTP_UI_POST_configParam(EthernetClient httpClient);
+
+void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient);
+
+//void HTTP_UI_PAGE_configCamera(EthernetClient httpClient);
+//void HTTP_UI_POST_configCamera(EthernetClient httpClient);
 
 void HTTP_UI_PAGE_configChart(EthernetClient httpClient);
 void HTTP_UI_POST_configChart(EthernetClient httpClient);
