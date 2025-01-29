@@ -84,7 +84,6 @@ void HTTP_UI_JSON_cameraLineNow(EthernetClient httpClient)
 
   if (sw1 && sw2)
   {
-
     HTTP_UI_PART_ResponceHeader(httpClient, "application/json");
     httpClient.print("{");
     httpClient.print("\"unitTime\":");
@@ -460,7 +459,7 @@ void HTTP_UI_PAGE_chart(EthernetClient httpClient)
 {
   String pageTitle = "chart";
   HTTP_UI_PART_ResponceHeader(httpClient, "text/html");
-  HTTP_UI_PART_HTMLHeader(httpClient, "chart");
+  HTTP_UI_PART_HTMLHeader(httpClient, pageTitle);
 
   httpClient.println("<h1>" + deviceName + "</h1>");
   httpClient.println("<h2>" + pageTitle + "</h2>");
@@ -721,6 +720,10 @@ void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient)
     HTTP_GET_PARAM_FROM_POST_OR_STORESTRING(wb_mode);
     HTTP_GET_PARAM_FROM_POST_OR_STORESTRING(ae_level);
 
+    HTTP_GET_PARAM_FROM_POST_OR_STORESTRING(flashIntensityMode);
+    HTTP_GET_PARAM_FROM_POST_OR_STORESTRING(flashLength);
+
+
     PutEEPROM();
     CameraSensorFullSetupFromStoreData();
   }
@@ -807,6 +810,9 @@ void HTTP_UI_POSTPAGE_configCameraParam(EthernetClient httpClient)
   HTML_PUT_LI_INPUT_WITH_COMMENT(wb_mode, "0 - 4");
   HTML_PUT_LI_INPUT_WITH_COMMENT(ae_level, "-2 - 2");
 
+  HTML_PUT_LI_INPUT_WITH_COMMENT(flashIntensityMode, "0:OFF, 1-8:220ms, 9-16:1.3s, 1|9:100%, 3|11:80%, 5|13:60%, 7|15:40%");
+  HTML_PUT_LI_INPUT_WITH_COMMENT(flashLength, "msec");
+
   httpClient.println("<li class=\"button\">");
   httpClient.println("<button type=\"submit\">Save</button>");
   httpClient.println("</li>");
@@ -833,20 +839,16 @@ void HTTP_UI_POSTPAGE_configEdgeSearch(EthernetClient httpClient)
   M5_LOGV("POST %u :: [%s]", currentLineLength, currentLine.c_str());
   if (currentLineLength > 1)
   {
-    //HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartShowPointCount);
-    //HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(chartUpdateInterval);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineStep);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineRange);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineAngle);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineShiftUp);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineSideWidth);
 
-
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineStep);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineRange);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineAngle);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineShiftUp);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineSideWidth);
-
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchStart);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchEnd);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeUp);
-  HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineThrethold);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchStart);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeSearchEnd);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineEdgeUp);
+    HTTP_GET_PARAM_FROM_POST_OR_STOREDATA(pixLineThrethold);
 
     PutEEPROM();
   }
@@ -962,7 +964,6 @@ void HTTP_UI_POSTPAGE_configTime(EthernetClient httpClient)
 
   HTTP_UI_PART_HTMLFooter(httpClient);
 }
-
 
 void HTTP_UI_PAGE_unitTime(EthernetClient httpClient)
 {

@@ -44,15 +44,15 @@ String gainceiling = "0";   // Initial value [0 - 6]
 String quality = "10";      // Quality initial value [0 - 63]
 String colorbar = "0";      // Color bar disabled|enabled [0 | 1]
 String whitebal = "1";      // White balance initial value [0 | 1]
-String gain_ctrl = "1";     // Gain control disabled|enabled [0 | 1]
-String exposure_ctrl = "1"; // Exposure control disabled|enabled [0 | 1]
+String gain_ctrl = "0";     // Gain control disabled|enabled [0 | 1]
+String exposure_ctrl = "0"; // Exposure control disabled|enabled [0 | 1]
 String hmirror = "1";       // Horizontal flip [0 | 1]
 String vflip = "0";         // Vertical flip [0 | 1]
 
 String aec2 = "0";      // Automatic exposure control 2 disabled|enabled [0 | 1]
 String awb_gain = "0";  // Automatic white balance gain disabled|enabled [0 | 1]
-String agc_gain = "0";  // Automatic gain control [0 - 30]
-String aec_value = "0"; // Automatic exposure control [0 - 1200]
+String agc_gain = "5";  // Automatic gain control [0 - 30]
+String aec_value = "60"; // Automatic exposure control [0 - 1200]
 
 String special_effect = "0"; // Special effect [0 - 6]
 String wb_mode = "0";        // White balance mode [0 - 4]
@@ -92,7 +92,7 @@ void InitEEPROM()
     String pixLineStep = "0";      //[px  0 - 255]
     String pixLineRange = "50";    //[0-100%]
     String pixLineAngle = "0";     //[0-90(deg) 0:horizontal 90:vertical]
-    String pixLineShiftUp = "0";   //[0-255 (px)]
+    String pixLineShiftUp = "0";   //[(px)]
     String pixLineSideWidth = "0"; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
     String pixLineEdgeSearchStart = "25"; //[0-100%]
@@ -112,15 +112,15 @@ void InitEEPROM()
     String quality = "10";      // Image quality [0 - 63]
     String colorbar = "0";      // Color bar enabled/disabled [0 | 1]
     String whitebal = "1";      // White balance enabled/disabled [0 | 1]
-    String gain_ctrl = "1";     // Gain control enabled/disabled [0 | 1]
-    String exposure_ctrl = "1"; // Exposure control enabled/disabled [0 | 1]
+    String gain_ctrl = "0";     // Gain control enabled/disabled [0 | 1]
+    String exposure_ctrl = "0"; // Exposure control enabled/disabled [0 | 1]
     String hmirror = "1";       // Horizontal mirror enabled/disabled [0 | 1]
     String vflip = "0";         // Vertical flip enabled/disabled [0 | 1]
 
     String aec2 = "0";      // Automatic exposure control 2 enabled/disabled [0 | 1]
     String awb_gain = "0";  // Automatic white balance gain enabled/disabled [0 | 1]
-    String agc_gain = "0";  // Automatic gain control [0 - 30]
-    String aec_value = "0"; // Automatic exposure control value [0 - 1200]
+    String agc_gain = "5";  // Automatic gain control [0 - 30]
+    String aec_value = "60"; // Automatic exposure control value [0 - 1200]
 
     String special_effect = "0"; // Special effect type [0 - 6]
     String wb_mode = "0";        // White balance mode [0 - 4]
@@ -169,7 +169,7 @@ void PutEEPROM()
     M5_LOGI("PutEEPROM: pixLineStep = %s, %u", pixLineStep.c_str(), (storeData.pixLineStep));
     M5_LOGI("PutEEPROM: pixLineRange = %s, %u", pixLineRange.c_str(), (storeData.pixLineRange));
     M5_LOGI("PutEEPROM: pixLineAngle = %s, %u", pixLineAngle.c_str(), (storeData.pixLineAngle));
-    M5_LOGI("PutEEPROM: pixLineShiftUp = %s, %u", pixLineShiftUp.c_str(), (storeData.pixLineShiftUp));
+    M5_LOGI("PutEEPROM: pixLineShiftUp = %s, %d", pixLineShiftUp.c_str(), (storeData.pixLineShiftUp));
     M5_LOGI("PutEEPROM: pixLineSideWidth = %s, %u", pixLineSideWidth.c_str(), (storeData.pixLineSideWidth));
 
     M5_LOGI("PutEEPROM: pixLineEdgeSearchStart = %s, %u", pixLineEdgeSearchStart.c_str(), (storeData.pixLineEdgeSearchStart));
@@ -236,7 +236,7 @@ void SetStringsFromStoreData()
     pixLineStep = String(storeData.pixLineStep);
     pixLineRange = String(storeData.pixLineRange);
     pixLineAngle = String(storeData.pixLineAngle);         //[0-90deg 0:horizontal 90:vertical]
-    pixLineShiftUp = String(storeData.pixLineShiftUp);     //[0-255 (px)]
+    pixLineShiftUp = String(storeData.pixLineShiftUp);     //[(px)]
     pixLineSideWidth = String(storeData.pixLineSideWidth); //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
     pixLineEdgeSearchStart = String(storeData.pixLineEdgeSearchStart); //[0-100%]
@@ -308,7 +308,7 @@ void SetStoreDataFromStrings()
     storeData.pixLineStep = (int8_t)(pixLineStep.toInt());
     storeData.pixLineRange = (int8_t)(pixLineRange.toInt());
     storeData.pixLineAngle = (uint8_t)(pixLineAngle.toInt());
-    storeData.pixLineShiftUp = (uint8_t)(pixLineShiftUp.toInt());
+    storeData.pixLineShiftUp = (int16_t)(pixLineShiftUp.toInt());
     storeData.pixLineSideWidth = (uint8_t)(pixLineSideWidth.toInt());
 
     storeData.pixLineEdgeSearchStart = (uint8_t)(pixLineEdgeSearchStart.toInt());

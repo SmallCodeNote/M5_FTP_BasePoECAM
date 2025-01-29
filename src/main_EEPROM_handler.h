@@ -7,7 +7,7 @@
 
 #define STORE_DATA_SIZE 512                // byte
 #define STORE_DATA_DEVICENAME_MAXLENGTH 31 // byte
-#define EEPROM_CHECK_CODE 0x60
+#define EEPROM_CHECK_CODE 0x62
 
 /// @brief Encorder Profile Struct
 struct DATA_SET
@@ -34,7 +34,7 @@ u_int16_t flashLength; //[1- (ms)]
 uint8_t pixLineStep;      //[0-255 (px)]
 uint8_t pixLineRange;     //[0-100%]
 uint8_t pixLineAngle;     //[0-90(deg) 0:horizontal 90:vertical]
-uint8_t pixLineShiftUp;   //[0-255 (px)]
+int16_t pixLineShiftUp;   //[(px)]
 uint8_t pixLineSideWidth; //[0-255 (px) 0:LineWidth->1,1->3,2->5]
 
 uint8_t pixLineEdgeSearchStart; //[0-100%]
